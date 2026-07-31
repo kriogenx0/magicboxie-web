@@ -1,0 +1,181 @@
+// Raw Jellyfin wire-format types (PascalCase, matches the Go backend's
+// internal/controllers/items_controller.go jellyfinItem exactly). Kept
+// separate from the friendly `Movie` type below so the rest of the app
+// never has to think about Jellyfin's field casing.
+
+export interface JellyfinImageTags {
+  Primary?: string;
+}
+
+export interface JellyfinPerson {
+  Id: string;
+  Name: string;
+  Type: string;
+  Role?: string;
+}
+
+export interface JellyfinMediaStream {
+  Type: string;
+  Codec: string;
+}
+
+export type MovieStatus =
+  | "pending"
+  | "probing"
+  | "needs_transcode"
+  | "transcoding"
+  | "ready"
+  | "error";
+
+export interface JellyfinItem {
+  Id: string;
+  Name: string;
+  Type: string;
+  Overview?: string;
+  ProductionYear?: number;
+  RunTimeTicks?: number;
+  DateCreated?: string;
+  Genres?: string[];
+  ImageTags?: JellyfinImageTags;
+  BackdropImageTags?: string[];
+  People?: JellyfinPerson[];
+  ProviderIds?: { Tmdb?: string };
+  MediaStreams?: JellyfinMediaStream[];
+
+  // Music fields (real Jellyfin field names)
+  AlbumArtist?: string;
+  Album?: string;
+  IndexNumber?: number;
+  ParentIndexNumber?: number;
+
+  MagicBoxStatus: MovieStatus;
+  MagicBoxProgressPercent?: number | null;
+  MagicBoxOriginalFilename: string;
+  MagicBoxNeedsReview: boolean;
+}
+
+export interface ItemsResponse {
+  Items: JellyfinItem[];
+  TotalRecordCount: number;
+  StartIndex: number;
+}
+
+// ---- Friendly internal shape used by the rest of the app ----
+
+export interface Movie {
+  id: number;
+  title: string;
+  year: number;
+  tmdbId: number | null;
+  overview: string;
+  genres: string[];
+  cast: { name: string; role?: string }[];
+  runtimeSeconds: number;
+  hasPoster: boolean;
+  hasBackdrop: boolean;
+  status: MovieStatus;
+  needsReview: boolean;
+  originalFilename: string;
+  addedAt: string;
+}
+
+const TICKS_PER_SECOND = 10_000_000;
+
+// Item ids are "<kind>-<n>" (e.g. "movie-5", "track-12") since movies,
+// artists, albums, and tracks each have their own auto-incrementing primary
+// key and would otherwise collide in Jellyfin's flat item-id space. Movies
+// keep a plain numeric `id` internally (this app only dealt with movies
+// until the music library shipped); music entities keep the full string id.
+export function parseNumericId(rawId: string): number {
+  const [, numStr] = rawId.split("-");
+  return Number(numStr ?? rawId);
+}
+
+export function mapItemToMovie(item: JellyfinItem): Movie {
+  return {
+    id: parseNumericId(item.Id),
+    title: item.Name,
+    year: item.ProductionYear ?? 0,
+    tmdbId: item.ProviderIds?.Tmdb ? Number(item.ProviderIds.Tmdb) : null,
+    overview: item.Overview ?? "",
+    genres: item.Genres ?? [],
+    cast: (item.People ?? []).map((p) => ({ name: p.Name, role: p.Role })),
+    runtimeSeconds: (item.RunTimeTicks ?? 0) / TICKS_PER_SECOND,
+    hasPoster: Boolean(item.ImageTags?.Primary),
+    hasBackdrop: Boolean(item.BackdropImageTags && item.BackdropImageTags.length > 0),
+    status: item.MagicBoxStatus || "ready",
+    needsReview: Boolean(item.MagicBoxNeedsReview),
+    originalFilename: item.MagicBoxOriginalFilename ?? "",
+    addedAt: item.DateCreated ?? new Date(0).toISOString(),
+  };
+}
+
+export interface Artist {
+  id: number;
+  name: string;
+  hasImage: boolean;
+}
+
+export interface Album {
+  id: number;
+  title: string;
+  year: number;
+  artistName: string;
+  hasCover: boolean;
+}
+
+export interface Track {
+  id: number;
+  title: string;
+  albumTitle: string;
+  artistName: string;
+  trackNumber: number;
+  discNumber: number;
+  durationSeconds: number;
+}
+
+export function mapItemToArtist(item: JellyfinItem): Artist {
+  return {
+    id: parseNumericId(item.Id),
+    name: item.Name,
+    hasImage: Boolean(item.ImageTags?.Primary),
+  };
+}
+
+export function mapItemToAlbum(item: JellyfinItem): Album {
+  return {
+    id: parseNumericId(item.Id),
+    title: item.Name,
+    year: item.ProductionYear ?? 0,
+    artistName: item.AlbumArtist ?? "",
+    hasCover: Boolean(item.ImageTags?.Primary),
+  };
+}
+
+export function mapItemToTrack(item: JellyfinItem): Track {
+  return {
+    id: parseNumericId(item.Id),
+    title: item.Name,
+    albumTitle: item.Album ?? "",
+    artistName: item.AlbumArtist ?? "",
+    trackNumber: item.IndexNumber ?? 0,
+    discNumber: item.ParentIndexNumber ?? 0,
+    durationSeconds: (item.RunTimeTicks ?? 0) / TICKS_PER_SECOND,
+  };
+}
+
+// ---- SSE job-progress events (MagicBox-specific, not part of Jellyfin) ----
+
+export interface JobProgressEvent {
+  type: "job_progress";
+  data: { movie_id: number; job_id: number; progress_percent: number };
+}
+export interface JobCompletedEvent {
+  type: "job_completed";
+  data: { movie_id: number; job_id: number; status: MovieStatus };
+}
+export interface JobFailedEvent {
+  type: "job_failed";
+  data: { movie_id: number; job_id: number; error: string };
+}
+export type ServerEvent = JobProgressEvent | JobCompletedEvent | JobFailedEvent;

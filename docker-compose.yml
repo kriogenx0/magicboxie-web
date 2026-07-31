@@ -1,0 +1,14 @@
+services:
+  magicbox:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./configs/magicbox.yaml:/etc/magicbox/config.yaml:ro
+      - magicbox-data:/var/lib/magicbox
+      - ${MOVIES_DIR:-./movies}:/mnt/media/movies
+      - ${MUSIC_DIR:-./music}:/mnt/media/music
+    restart: unless-stopped
+
+volumes:
+  magicbox-data:

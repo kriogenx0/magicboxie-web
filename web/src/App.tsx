@@ -1,0 +1,106 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import type { ReactNode } from "react";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { useLiveEvents } from "./hooks/useLiveEvents";
+import { Layout } from "./components/Layout";
+import { MusicPlayerBar } from "./components/MusicPlayerBar";
+import { LoginPage } from "./pages/LoginPage";
+import { HomePage } from "./pages/HomePage";
+import { MovieDetailPage } from "./pages/MovieDetailPage";
+import { MusicHomePage } from "./pages/MusicHomePage";
+import { ArtistPage } from "./pages/ArtistPage";
+import { AlbumPage } from "./pages/AlbumPage";
+
+const queryClient = new QueryClient();
+
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  useLiveEvents();
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <HomePage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/movies/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <MovieDetailPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/music"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <MusicHomePage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/music/artists/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ArtistPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/music/albums/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <AlbumPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* Mounted as a sibling of <Routes>, not inside Layout, so the single
+          <audio> element survives route changes instead of being torn down
+          and recreated on every navigation. */}
+      {isAuthenticated && <MusicPlayerBar />}
+    </>
+  );
+}
+
+export function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}

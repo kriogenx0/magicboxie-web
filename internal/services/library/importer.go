@@ -1,0 +1,232 @@
+package library
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"gorm.io/gorm"
+
+	"magicbox/internal/models"
+	"magicbox/internal/services/media"
+	"magicbox/internal/services/mediatype"
+	"magicbox/internal/services/thumbnail"
+	"magicbox/internal/services/tmdb"
+)
+
+type Importer struct {
+	db        *gorm.DB
+	moviesDir string
+	dataDir   string
+	tmdb      *tmdb.Client
+
+	// OnNeedsTranscode is invoked (if set) whenever an imported movie turns
+	// out not to be browser/iOS compatible, so the transcode worker pool can
+	// pick it up. Wired from main.go to avoid this package depending on the
+	// transcode package directly.
+	OnNeedsTranscode func(movieID uint)
+}
+
+func NewImporter(db *gorm.DB, moviesDir, dataDir string, tmdbClient *tmdb.Client) *Importer {
+	return &Importer{db: db, moviesDir: moviesDir, dataDir: dataDir, tmdb: tmdbClient}
+}
+
+// Scan walks moviesDir for video files not already known (by SourceRelpath)
+// and imports each one. Errors on individual files are logged and skipped
+// rather than aborting the whole scan.
+func (im *Importer) Scan(ctx context.Context) (imported int, err error) {
+	err = filepath.WalkDir(im.moviesDir, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			if strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !mediatype.IsMovie(d.Name()) {
+			return nil
+		}
+
+		relpath, err := filepath.Rel(im.moviesDir, path)
+		if err != nil {
+			return nil
+		}
+
+		didImport, err := im.ImportNewFile(ctx, relpath, path)
+		if err != nil {
+			log.Printf("library: failed to import %q: %v", relpath, err)
+			return nil
+		}
+		if didImport {
+			imported++
+		}
+		return nil
+	})
+	return imported, err
+}
+
+// ImportNewFile imports absPath (whose path relative to moviesDir is
+// relpath) if it isn't already known by SourceRelpath. Returns whether an
+// import actually happened. Used by both the directory scanner and the
+// chunked-upload completion handler.
+func (im *Importer) ImportNewFile(ctx context.Context, relpath, absPath string) (bool, error) {
+	var count int64
+	im.db.Model(&models.Movie{}).Where("source_relpath = ?", relpath).Count(&count)
+	if count > 0 {
+		return false, nil
+	}
+	if err := im.importFile(ctx, relpath, absPath); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (im *Importer) importFile(ctx context.Context, relpath, absPath string) error {
+	filename := filepath.Base(absPath)
+	title, year := ParseFilename(filename)
+
+	movie := &models.Movie{
+		Title:            title,
+		Year:             year,
+		OriginalFilename: filename,
+		SourceRelpath:    relpath,
+		PlayableRelpath:  relpath,
+		Status:           models.MovieStatusProbing,
+	}
+	if stat, err := os.Stat(absPath); err == nil {
+		movie.FileSizeBytes = stat.Size()
+	}
+	if err := im.db.Create(movie).Error; err != nil {
+		return fmt.Errorf("creating movie row: %w", err)
+	}
+
+	info, err := media.Probe(ctx, absPath)
+	if err != nil {
+		im.db.Model(movie).Updates(map[string]interface{}{
+			"status":        models.MovieStatusError,
+			"error_message": err.Error(),
+		})
+		return err
+	}
+
+	movie.DurationSeconds = info.DurationSeconds
+	movie.VideoCodec = info.VideoCodec
+	movie.AudioCodec = info.AudioCodec
+	movie.Container = info.Container
+
+	im.matchMetadata(ctx, movie, absPath, title, year)
+
+	if info.IsBrowserCompatible() {
+		movie.Status = models.MovieStatusReady
+	} else {
+		movie.Status = models.MovieStatusNeedsTranscode
+	}
+
+	if err := im.db.Save(movie).Error; err != nil {
+		return err
+	}
+
+	if movie.Status == models.MovieStatusNeedsTranscode && im.OnNeedsTranscode != nil {
+		im.OnNeedsTranscode(movie.ID)
+	}
+	return nil
+}
+
+// ApplyManualMatch lets a user correct an ambiguous/no-match import by
+// picking the right TMDB entry themselves (POST /movies/{id}/match).
+func (im *Importer) ApplyManualMatch(ctx context.Context, movie *models.Movie, tmdbID int) error {
+	details, err := im.tmdb.GetMovieDetails(ctx, tmdbID)
+	if err != nil {
+		return fmt.Errorf("fetching tmdb details: %w", err)
+	}
+	im.applyTMDBDetails(ctx, movie, details)
+	movie.NeedsReview = false
+	return im.db.Save(movie).Error
+}
+
+func (im *Importer) matchMetadata(ctx context.Context, movie *models.Movie, absPath, title string, year int) {
+	results, err := im.tmdb.SearchMovie(ctx, title, year)
+	if err != nil && !errors.Is(err, tmdb.ErrNotConfigured) {
+		log.Printf("library: tmdb search failed for %q: %v", title, err)
+	}
+	if len(results) == 0 && year > 0 {
+		// Retry without the year in case it was parsed wrong or TMDB's
+		// primary_release_year filter is too strict for this title.
+		results, _ = im.tmdb.SearchMovie(ctx, title, 0)
+	}
+
+	if len(results) == 0 {
+		im.generateFallbackThumbnail(ctx, movie, absPath)
+		return
+	}
+
+	sort.Slice(results, func(i, j int) bool { return results[i].Popularity > results[j].Popularity })
+	best := results[0]
+	movie.NeedsReview = year == 0 || len(results) > 1
+
+	details, err := im.tmdb.GetMovieDetails(ctx, best.ID)
+	if err != nil {
+		log.Printf("library: tmdb details fetch failed for %q (id=%d): %v", title, best.ID, err)
+		im.generateFallbackThumbnail(ctx, movie, absPath)
+		return
+	}
+
+	im.applyTMDBDetails(ctx, movie, details)
+}
+
+func (im *Importer) applyTMDBDetails(ctx context.Context, movie *models.Movie, details *tmdb.MovieDetails) {
+	tmdbID := details.ID
+	movie.TMDBID = &tmdbID
+	movie.Overview = details.Overview
+	movie.RuntimeMinutes = details.Runtime
+
+	genres := make([]string, 0, len(details.Genres))
+	for _, g := range details.Genres {
+		genres = append(genres, g.Name)
+	}
+	if b, err := json.Marshal(genres); err == nil {
+		movie.GenresJSON = string(b)
+	}
+
+	cast := details.Credits.Cast
+	if len(cast) > 10 {
+		cast = cast[:10]
+	}
+	if b, err := json.Marshal(cast); err == nil {
+		movie.CastJSON = string(b)
+	}
+
+	posterDest := filepath.Join(im.dataDir, "images", "posters", fmt.Sprintf("%d.jpg", movie.ID))
+	if err := cacheImage(ctx, im.tmdb, "w780", details.PosterPath, posterDest); err != nil {
+		log.Printf("library: poster download failed for movie %d: %v", movie.ID, err)
+	} else if details.PosterPath != "" {
+		movie.PosterPath = fmt.Sprintf("posters/%d.jpg", movie.ID)
+	}
+
+	backdropDest := filepath.Join(im.dataDir, "images", "backdrops", fmt.Sprintf("%d.jpg", movie.ID))
+	if err := cacheImage(ctx, im.tmdb, "w1280", details.BackdropPath, backdropDest); err != nil {
+		log.Printf("library: backdrop download failed for movie %d: %v", movie.ID, err)
+	} else if details.BackdropPath != "" {
+		movie.BackdropPath = fmt.Sprintf("backdrops/%d.jpg", movie.ID)
+	}
+}
+
+func (im *Importer) generateFallbackThumbnail(ctx context.Context, movie *models.Movie, absPath string) {
+	movie.NeedsReview = true
+	destPath := filepath.Join(im.dataDir, "images", "posters", fmt.Sprintf("%d.gif", movie.ID))
+	if err := thumbnail.Generate(ctx, absPath, movie.DurationSeconds, destPath); err != nil {
+		log.Printf("library: thumbnail generation failed for movie %d: %v", movie.ID, err)
+		return
+	}
+	movie.PosterPath = fmt.Sprintf("posters/%d.gif", movie.ID)
+	movie.PosterIsGenerated = true
+}

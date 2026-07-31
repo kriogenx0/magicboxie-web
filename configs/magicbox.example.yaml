@@ -1,0 +1,17 @@
+listen_addr: ":8080"
+movies_dir: "/mnt/media/movies"
+music_dir: "/mnt/media/music"
+data_dir: "/var/lib/magicbox"
+
+auth:
+  # Generate with: magicbox hash-password '<your password>'
+  password_hash: ""
+
+tmdb:
+  # TMDB v4 read access token (https://www.themoviedb.org/settings/api)
+  api_read_token: ""
+
+transcode:
+  max_concurrent_jobs: 1
+  preset: "medium"
+  crf: 20

@@ -1,0 +1,8 @@
+/bin/
+/configs/magicbox.yaml
+/configs/magicbox.local.yaml
+*.sqlite
+*.sqlite-journal
+jwt.key
+/web/node_modules/
+.DS_Store
