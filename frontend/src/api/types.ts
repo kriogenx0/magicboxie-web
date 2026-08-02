@@ -164,6 +164,16 @@ export function mapItemToTrack(item: JellyfinItem): Track {
   };
 }
 
+// ---- Manual TMDB re-match (MagicBox-specific, not part of Jellyfin) ----
+
+export interface TMDBSearchResult {
+  tmdb_id: number;
+  title: string;
+  year?: number;
+  overview?: string;
+  poster_url?: string;
+}
+
 // ---- SSE job-progress events (MagicBox-specific, not part of Jellyfin) ----
 
 export interface JobProgressEvent {

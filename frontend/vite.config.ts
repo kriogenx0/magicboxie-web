@@ -13,12 +13,12 @@ export default defineConfig({
     // prefix), so each top-level path family is proxied individually;
     // MagicBox's own extensions stay under /magicbox.
     proxy: {
-      "/System": "http://localhost:8080",
-      "/Users": "http://localhost:8080",
-      "/Items": "http://localhost:8080",
-      "/Videos": "http://localhost:8080",
-      "/Sessions": "http://localhost:8080",
-      "/magicbox": "http://localhost:8080",
+      "/System": "http://localhost:8090",
+      "/Users": "http://localhost:8090",
+      "/Items": "http://localhost:8090",
+      "/Videos": "http://localhost:8090",
+      "/Sessions": "http://localhost:8090",
+      "/magicbox": "http://localhost:8090",
     },
   },
 });

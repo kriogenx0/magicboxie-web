@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useMovie } from "../hooks/useMovies";
 import { movieImageUrl, movieStreamUrl, movieDownloadUrl } from "../api/client";
 import { useTranscodeProgress } from "../hooks/useTranscodeProgress";
+import { MatchPicker } from "../components/MatchPicker";
 
 function formatRuntime(seconds: number): string {
   const mins = Math.round(seconds / 60);
@@ -16,6 +17,7 @@ export function MovieDetailPage() {
   const movieId = Number(id);
   const { data: movie, isLoading, error } = useMovie(movieId);
   const [showPlayer, setShowPlayer] = useState(false);
+  const [showMatchPicker, setShowMatchPicker] = useState(false);
   const navigate = useNavigate();
   const progress = useTranscodeProgress(movieId);
 
@@ -87,6 +89,22 @@ export function MovieDetailPage() {
               </div>
             )}
 
+            {(!movie.tmdbId || movie.needsReview) && (
+              <div className="mt-4 flex items-center justify-between gap-4 rounded bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
+                <span>
+                  {movie.tmdbId
+                    ? "This match might not be right."
+                    : "No metadata match was found for this file."}
+                </span>
+                <button
+                  onClick={() => setShowMatchPicker(true)}
+                  className="shrink-0 rounded border border-neutral-600 px-3 py-1.5 text-neutral-200 transition hover:border-red-600 hover:text-white"
+                >
+                  Search TMDB
+                </button>
+              </div>
+            )}
+
             {movie.overview && <p className="mt-4 max-w-2xl text-neutral-200">{movie.overview}</p>}
 
             {ready && (
@@ -129,6 +147,15 @@ export function MovieDetailPage() {
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video key={movie.id} src={movieStreamUrl(movie.id)} controls autoPlay className="max-h-full max-w-full" />
         </div>
+      )}
+
+      {showMatchPicker && (
+        <MatchPicker
+          movieId={movie.id}
+          initialQuery={movie.title}
+          initialYear={movie.year || undefined}
+          onClose={() => setShowMatchPicker(false)}
+        />
       )}
     </div>
   );

@@ -153,6 +153,12 @@ func (im *Importer) ApplyManualMatch(ctx context.Context, movie *models.Movie, t
 	return im.db.Save(movie).Error
 }
 
+// SearchTMDB looks up candidate TMDB matches by title (+ optional year), for
+// manually correcting an ambiguous or missing automatic match in the UI.
+func (im *Importer) SearchTMDB(ctx context.Context, title string, year int) ([]tmdb.SearchResult, error) {
+	return im.tmdb.SearchMovie(ctx, title, year)
+}
+
 func (im *Importer) matchMetadata(ctx context.Context, movie *models.Movie, absPath, title string, year int) {
 	results, err := im.tmdb.SearchMovie(ctx, title, year)
 	if err != nil && !errors.Is(err, tmdb.ErrNotConfigured) {

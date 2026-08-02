@@ -3,12 +3,12 @@
 # ---- Stage 1: frontend ----
 FROM node:20-slim AS frontend
 WORKDIR /src
-COPY web ./web
+COPY frontend ./frontend
 COPY internal/web/dist ./internal/web/dist
-RUN if [ -f web/package.json ]; then \
-      cd web && npm ci && npm run build; \
+RUN if [ -f frontend/package.json ]; then \
+      cd frontend && npm ci && npm run build; \
     else \
-      echo "web/package.json not present yet -- keeping placeholder internal/web/dist"; \
+      echo "frontend/package.json not present yet -- keeping placeholder internal/web/dist"; \
     fi
 
 # ---- Stage 2: Go binary ----

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -487,6 +488,56 @@ func (ic *ItemsController) Match(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, movieToItem(movie))
+}
+
+type tmdbSearchResult struct {
+	TMDBID    int    `json:"tmdb_id"`
+	Title     string `json:"title"`
+	Year      int    `json:"year,omitempty"`
+	Overview  string `json:"overview,omitempty"`
+	PosterURL string `json:"poster_url,omitempty"`
+}
+
+// Search is a MagicBox-specific extension letting the user look up TMDB
+// candidates by title, to manually correct a movie whose automatic match was
+// missing or wrong (see Match, which applies the chosen candidate).
+func (ic *ItemsController) Search(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("query"))
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required"})
+		return
+	}
+	year, _ := strconv.Atoi(c.Query("year"))
+
+	results, err := ic.importer.SearchTMDB(c.Request.Context(), query, year)
+	if err != nil {
+		if errors.Is(err, tmdb.ErrNotConfigured) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "TMDB is not configured"})
+			return
+		}
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+
+	out := make([]tmdbSearchResult, len(results))
+	for i, r := range results {
+		year := 0
+		if len(r.ReleaseDate) >= 4 {
+			year, _ = strconv.Atoi(r.ReleaseDate[:4])
+		}
+		posterURL := ""
+		if r.PosterPath != "" {
+			posterURL = "https://image.tmdb.org/t/p/w200" + r.PosterPath
+		}
+		out[i] = tmdbSearchResult{
+			TMDBID:    r.ID,
+			Title:     r.Title,
+			Year:      year,
+			Overview:  r.Overview,
+			PosterURL: posterURL,
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"results": out})
 }
 
 // Scan is a MagicBox-specific extension that kicks off a movie library scan

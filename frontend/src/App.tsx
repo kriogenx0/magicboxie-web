@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { useLiveEvents } from "./hooks/useLiveEvents";
+import { UploadQueueProvider } from "./hooks/useUploadQueue";
 import { Layout } from "./components/Layout";
 import { MusicPlayerBar } from "./components/MusicPlayerBar";
 import { LoginPage } from "./pages/LoginPage";
@@ -97,9 +98,11 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <UploadQueueProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </UploadQueueProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

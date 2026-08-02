@@ -1,5 +1,5 @@
-// Package web embeds the built React frontend (web/dist) into the Go binary
-// so a single binary can serve both the API and the static site.
+// Package web embeds the built React frontend (frontend/dist) into the Go
+// binary so a single binary can serve both the API and the static site.
 package web
 
 import (

@@ -6,8 +6,7 @@ services:
     volumes:
       - ./configs/magicbox.yaml:/etc/magicbox/config.yaml:ro
       - magicbox-data:/var/lib/magicbox
-      - ${MOVIES_DIR:-./movies}:/mnt/media/movies
-      - ${MUSIC_DIR:-./music}:/mnt/media/music
+      - ${CONTENT_DIR:-./content}:/content
     restart: unless-stopped
 
 volumes:

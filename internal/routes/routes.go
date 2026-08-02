@@ -64,6 +64,7 @@ func Register(router *gin.Engine, deps Dependencies) {
 			magicbox.POST("/library/scan", deps.ItemsController.Scan)
 			magicbox.POST("/library/music/scan", deps.ItemsController.MusicScan)
 			magicbox.POST("/items/:itemId/match", deps.ItemsController.Match)
+			magicbox.GET("/items/search", deps.ItemsController.Search)
 
 			magicbox.POST("/uploads", deps.UploadsController.Create)
 			magicbox.GET("/uploads/:id", deps.UploadsController.Status)

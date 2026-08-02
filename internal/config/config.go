@@ -31,8 +31,8 @@ type Config struct {
 func defaults() Config {
 	var c Config
 	c.ListenAddr = ":8080"
-	c.MoviesDir = "/mnt/media/movies"
-	c.MusicDir = "/mnt/media/music"
+	c.MoviesDir = "/content/movies"
+	c.MusicDir = "/content/music"
 	c.DataDir = "/var/lib/magicbox"
 	c.Transcode.MaxConcurrentJobs = 1
 	c.Transcode.Preset = "medium"
