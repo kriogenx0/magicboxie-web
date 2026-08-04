@@ -27,42 +27,42 @@ export function Layout({ children }: { children: ReactNode }) {
   const { getRootProps, isDragActive } = useDropzone({ onDrop, noClick: true, noKeyboard: true });
 
   return (
-    <div {...getRootProps()} className="min-h-screen bg-black pb-24">
+    <div {...getRootProps()} className="app-surface min-h-screen pb-24">
       {isDragActive && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center border-4 border-dashed border-red-600 bg-black/80">
           <p className="text-2xl font-semibold text-white">Drop to upload</p>
         </div>
       )}
-      <header className="sticky top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black to-transparent px-4 py-4 sm:px-8">
-        <div className="flex items-center gap-6">
-          <Link to="/" className="text-xl font-bold tracking-wide text-red-600">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between bg-gradient-to-b from-black via-black/85 to-transparent px-4 sm:h-[68px] sm:px-10">
+        <div className="flex items-center gap-7">
+          <Link to="/" className="netflix-logo text-2xl font-black uppercase text-[#e50914] sm:text-[1.65rem]">
             MagicBox
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex items-center gap-5 text-sm font-medium">
             <Link
               to="/"
-              className={!onMusic ? "text-white" : "text-neutral-400 hover:text-white"}
+              className={!onMusic ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}
             >
               Movies
             </Link>
             <Link
               to="/music"
-              className={onMusic ? "text-white" : "text-neutral-400 hover:text-white"}
+              className={onMusic ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}
             >
               Music
             </Link>
           </nav>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setShowUpload((v) => !v)}
-            className="rounded border border-neutral-700 px-3 py-1.5 text-sm text-neutral-200 transition hover:border-red-600 hover:text-white"
+            className="rounded-sm border border-neutral-500 px-2.5 py-1 text-xs font-medium text-neutral-100 transition hover:border-white hover:bg-white/10 sm:px-3 sm:text-sm"
           >
             {showUpload ? "Close" : "Add Media"}
           </button>
           <button
             onClick={logout}
-            className="rounded border border-neutral-700 px-3 py-1.5 text-sm text-neutral-400 transition hover:border-neutral-500 hover:text-white"
+            className="hidden rounded-sm px-2 py-1 text-xs text-neutral-400 transition hover:text-white sm:block"
           >
             Log out
           </button>

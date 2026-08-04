@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMovie } from "../hooks/useMovies";
 import { movieImageUrl, movieStreamUrl, movieDownloadUrl } from "../api/client";
@@ -18,6 +18,7 @@ export function MovieDetailPage() {
   const { data: movie, isLoading, error } = useMovie(movieId);
   const [showPlayer, setShowPlayer] = useState(false);
   const [showMatchPicker, setShowMatchPicker] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
   const progress = useTranscodeProgress(movieId);
 
@@ -30,9 +31,18 @@ export function MovieDetailPage() {
 
   const ready = movie.status === "ready";
 
+  const enterFullscreen = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    await video.requestFullscreen?.().catch(() => {
+      // Fullscreen can be unavailable in an embedded browser; native video
+      // controls still expose the platform's fullscreen option where present.
+    });
+  };
+
   return (
     <div>
-      <div className="relative h-[40vh] min-h-[280px] w-full overflow-hidden">
+      <div className="relative -mt-16 h-[55vh] min-h-[350px] w-full overflow-hidden sm:-mt-[68px] sm:h-[65vh]">
         {movie.hasBackdrop ? (
           <img
             src={movieImageUrl(movie.id, "backdrop")}
@@ -42,18 +52,19 @@ export function MovieDetailPage() {
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-black" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-black/45 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/55 to-transparent" />
         <button
           onClick={() => navigate(-1)}
-          className="absolute left-4 top-4 rounded bg-black/60 px-3 py-1.5 text-sm text-white transition hover:bg-black/80 sm:left-8 sm:top-6"
+          className="absolute left-4 top-20 rounded-sm bg-black/50 px-3 py-1.5 text-sm text-white transition hover:bg-black/80 sm:left-10 sm:top-24"
         >
           ← Back
         </button>
       </div>
 
-      <div className="relative z-10 mx-auto -mt-24 max-w-4xl px-4 pb-16 sm:px-8">
+      <div className="relative z-10 mx-auto -mt-40 max-w-6xl px-4 pb-16 sm:-mt-52 sm:px-10">
         <div className="flex flex-col gap-6 sm:flex-row">
-          <div className="w-40 shrink-0 overflow-hidden rounded-md bg-neutral-800 shadow-xl sm:w-56">
+          <div className="hidden w-40 shrink-0 overflow-hidden rounded-sm bg-neutral-800 shadow-2xl sm:block sm:w-56">
             <div className="aspect-[2/3] w-full">
               {movie.hasPoster ? (
                 <img
@@ -70,15 +81,15 @@ export function MovieDetailPage() {
           </div>
 
           <div className="flex-1 pt-2">
-            <h1 className="text-3xl font-bold sm:text-4xl">{movie.title}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-neutral-400">
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">{movie.title}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-neutral-300">
               {movie.year > 0 && <span>{movie.year}</span>}
               {movie.runtimeSeconds > 0 && <span>{formatRuntime(movie.runtimeSeconds)}</span>}
               {movie.genres.length > 0 && <span>{movie.genres.join(", ")}</span>}
             </div>
 
             {!ready && (
-              <div className="mt-4 rounded bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
+              <div className="mt-5 rounded-sm bg-neutral-900/90 px-4 py-3 text-sm text-neutral-300">
                 {movie.status === "transcoding"
                   ? `Transcoding… ${(progress ?? 0).toFixed(0)}%`
                   : movie.status === "needs_transcode"
@@ -90,7 +101,7 @@ export function MovieDetailPage() {
             )}
 
             {(!movie.tmdbId || movie.needsReview) && (
-              <div className="mt-4 flex items-center justify-between gap-4 rounded bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
+              <div className="mt-5 flex items-center justify-between gap-4 rounded-sm bg-neutral-900/90 px-4 py-3 text-sm text-neutral-300">
                 <span>
                   {movie.tmdbId
                     ? "This match might not be right."
@@ -98,26 +109,26 @@ export function MovieDetailPage() {
                 </span>
                 <button
                   onClick={() => setShowMatchPicker(true)}
-                  className="shrink-0 rounded border border-neutral-600 px-3 py-1.5 text-neutral-200 transition hover:border-red-600 hover:text-white"
+                  className="shrink-0 rounded-sm border border-neutral-500 px-3 py-1.5 text-neutral-200 transition hover:border-white hover:text-white"
                 >
                   Search TMDB
                 </button>
               </div>
             )}
 
-            {movie.overview && <p className="mt-4 max-w-2xl text-neutral-200">{movie.overview}</p>}
+            {movie.overview && <p className="mt-5 max-w-2xl leading-relaxed text-neutral-200">{movie.overview}</p>}
 
             {ready && (
-              <div className="mt-6 flex gap-3">
+              <div className="mt-7 flex gap-3">
                 <button
                   onClick={() => setShowPlayer(true)}
-                  className="rounded bg-red-600 px-6 py-2 font-semibold text-white transition hover:bg-red-700"
+                  className="rounded-sm bg-white px-6 py-2.5 font-bold text-black transition hover:bg-white/80"
                 >
                   ▶ Play
                 </button>
                 <a
                   href={movieDownloadUrl(movie.id)}
-                  className="rounded border border-neutral-600 px-6 py-2 font-semibold text-neutral-200 transition hover:border-neutral-400"
+                  className="rounded-sm bg-neutral-500/70 px-6 py-2.5 font-bold text-white transition hover:bg-neutral-500/50"
                 >
                   Download
                 </a>
@@ -137,15 +148,33 @@ export function MovieDetailPage() {
       </div>
 
       {showPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4">
-          <button
-            onClick={() => setShowPlayer(false)}
-            className="absolute right-4 top-4 rounded bg-white/10 px-3 py-1.5 text-white transition hover:bg-white/20"
-          >
-            ✕ Close
-          </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black p-4 sm:p-8">
+          <div className="absolute inset-x-4 top-4 z-10 flex items-center justify-between sm:inset-x-8 sm:top-6">
+            <p className="max-w-[65%] truncate text-sm font-medium text-white">{movie.title}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={enterFullscreen}
+                className="rounded-sm bg-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/20"
+              >
+                ⛶ Full screen
+              </button>
+              <button
+                onClick={() => setShowPlayer(false)}
+                className="rounded-sm bg-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/20"
+              >
+                ✕ Close
+              </button>
+            </div>
+          </div>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video key={movie.id} src={movieStreamUrl(movie.id)} controls autoPlay className="max-h-full max-w-full" />
+          <video
+            ref={videoRef}
+            key={movie.id}
+            src={movieStreamUrl(movie.id)}
+            controls
+            autoPlay
+            className="max-h-full max-w-full rounded-sm shadow-2xl"
+          />
         </div>
       )}
 

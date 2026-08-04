@@ -5,7 +5,7 @@ export function UploadDropzone() {
 
   return (
     <div className="px-4 sm:px-8">
-      <label className="mb-4 flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-neutral-700 bg-neutral-900/50 p-8 text-center transition-colors hover:border-neutral-500">
+      <label className="mb-4 flex cursor-pointer flex-col items-center rounded-sm border-2 border-dashed border-neutral-700 bg-neutral-900/50 p-8 text-center transition-colors hover:border-neutral-400">
         <input
           type="file"
           multiple
@@ -29,7 +29,7 @@ export function UploadDropzone() {
           {uploads.map((u) => {
             const pct = u.totalBytes > 0 ? (u.receivedBytes / u.totalBytes) * 100 : 0;
             return (
-              <li key={u.id} className="rounded bg-neutral-900 px-3 py-2 text-sm">
+              <li key={u.id} className="rounded-sm bg-neutral-900 px-3 py-2 text-sm">
                 <div className="mb-1 flex justify-between text-neutral-300">
                   <span className="truncate">{u.name}</span>
                   <span className="ml-2 shrink-0">
@@ -39,7 +39,7 @@ export function UploadDropzone() {
                 <div className="h-1 w-full overflow-hidden rounded-full bg-neutral-700">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      u.status === "error" ? "bg-red-700" : "bg-red-600"
+                      u.status === "error" ? "bg-red-700" : "bg-white"
                     }`}
                     style={{ width: `${Math.min(100, pct)}%` }}
                   />

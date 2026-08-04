@@ -34,7 +34,7 @@ export function MatchPicker({ movieId, initialQuery, initialYear, onClose }: Mat
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 pt-16">
-      <div className="w-full max-w-lg rounded-lg bg-neutral-900 p-6 shadow-xl">
+      <div className="w-full max-w-lg rounded-sm bg-neutral-900 p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Find the right match</h2>
           <button onClick={onClose} className="text-neutral-400 hover:text-white">
@@ -48,18 +48,18 @@ export function MatchPicker({ movieId, initialQuery, initialYear, onClose }: Mat
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Movie title"
             autoFocus
-            className="min-w-0 flex-1 rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-white placeholder-neutral-500 focus:border-red-600 focus:outline-none"
+            className="min-w-0 flex-1 rounded-sm border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-white placeholder-neutral-500 focus:border-red-600 focus:outline-none"
           />
           <input
             value={year}
             onChange={(e) => setYear(e.target.value)}
             placeholder="Year"
-            className="w-20 rounded border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-white placeholder-neutral-500 focus:border-red-600 focus:outline-none"
+            className="w-20 rounded-sm border border-neutral-700 bg-neutral-800 px-3 py-2 text-sm text-white placeholder-neutral-500 focus:border-red-600 focus:outline-none"
           />
           <button
             type="submit"
             disabled={searching || !query.trim()}
-            className="shrink-0 rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+            className="shrink-0 rounded-sm bg-[#e50914] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#f6121d] disabled:opacity-50"
           >
             {searching ? "Searching…" : "Search"}
           </button>
@@ -79,8 +79,8 @@ export function MatchPicker({ movieId, initialQuery, initialYear, onClose }: Mat
         {results && results.length > 0 && (
           <ul className="max-h-96 space-y-2 overflow-y-auto">
             {results.map((r) => (
-              <li key={r.tmdb_id} className="flex gap-3 rounded bg-neutral-800 p-2">
-                <div className="h-24 w-16 shrink-0 overflow-hidden rounded bg-neutral-700">
+              <li key={r.tmdb_id} className="flex gap-3 rounded-sm bg-neutral-800 p-2">
+                <div className="h-24 w-16 shrink-0 overflow-hidden rounded-sm bg-neutral-700">
                   {r.poster_url && <img src={r.poster_url} alt="" className="h-full w-full object-cover" />}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -91,7 +91,7 @@ export function MatchPicker({ movieId, initialQuery, initialYear, onClose }: Mat
                   <button
                     onClick={() => applyMatch.mutate(r.tmdb_id, { onSuccess: onClose })}
                     disabled={applyMatch.isPending}
-                    className="mt-2 rounded border border-neutral-600 px-3 py-1 text-xs text-neutral-200 transition hover:border-red-600 hover:text-white disabled:opacity-50"
+                    className="mt-2 rounded-sm border border-neutral-500 px-3 py-1 text-xs text-neutral-200 transition hover:border-white hover:text-white disabled:opacity-50"
                   >
                     Use this match
                   </button>

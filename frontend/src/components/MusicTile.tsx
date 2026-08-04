@@ -16,10 +16,10 @@ export function MusicTile({
   return (
     <Link
       to={to}
-      className="group w-36 shrink-0 transition-transform duration-200 ease-out hover:scale-105 focus:scale-105 focus:outline-none sm:w-44"
+      className="group w-32 shrink-0 transition duration-300 ease-out hover:scale-105 focus:scale-105 focus:outline-none sm:w-40"
     >
       <div
-        className={`aspect-square w-full overflow-hidden bg-neutral-800 shadow-lg ${round ? "rounded-full" : "rounded-md"}`}
+        className={`aspect-square w-full overflow-hidden bg-neutral-800 shadow-lg transition-shadow group-hover:shadow-2xl ${round ? "rounded-full" : "rounded-sm"}`}
       >
         {imageUrl ? (
           <img src={imageUrl} alt={title} loading="lazy" className="h-full w-full object-cover" />

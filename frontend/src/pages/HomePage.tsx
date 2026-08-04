@@ -51,7 +51,7 @@ export function HomePage() {
   return (
     <div>
       <Hero movies={heroMovies} />
-      <div className="mt-6">
+      <div className="relative z-10 -mt-4 sm:-mt-10">
         <PosterRow title="Continue Processing" movies={inProgress} />
         <PosterRow title="Recently Added" movies={recentlyAdded} />
         {byGenre.map(([label, list]) => (

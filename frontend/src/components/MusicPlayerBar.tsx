@@ -20,11 +20,15 @@ export function MusicPlayerBar() {
   const { queue, currentIndex, isPlaying, togglePlay, next, prev } = usePlayerStore();
   const track = currentIndex >= 0 ? queue[currentIndex] : undefined;
   const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.8);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !track) return;
     audio.src = audioStreamUrl(track.id);
+    setCurrentTime(0);
+    setDuration(track.durationSeconds || 0);
     audio.play().catch(() => {
       /* autoplay may be blocked until a user gesture; the play button covers that */
     });
@@ -37,23 +41,29 @@ export function MusicPlayerBar() {
     else audio.pause();
   }, [isPlaying, track]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) audio.volume = volume;
+  }, [volume]);
+
   if (!track) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-800 bg-neutral-950/95 px-4 py-3 backdrop-blur sm:px-8">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-800 bg-neutral-950/95 px-4 py-3 backdrop-blur sm:px-10">
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio
         ref={audioRef}
         onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || track.durationSeconds || 0)}
         onEnded={next}
       />
-      <div className="mx-auto flex max-w-4xl items-center gap-4">
-        <div className="min-w-0 flex-1">
+      <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 sm:grid-cols-[minmax(10rem,1fr)_auto_minmax(10rem,1fr)]">
+        <div className="min-w-0">
           <p className="truncate text-sm font-medium text-white">{track.title}</p>
           <p className="truncate text-xs text-neutral-400">{track.artistName}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 sm:col-start-2">
           <button
             onClick={prev}
             disabled={currentIndex <= 0}
@@ -79,11 +89,41 @@ export function MusicPlayerBar() {
           </button>
         </div>
 
-        <div className="hidden items-center gap-2 text-xs text-neutral-400 sm:flex">
-          <span>{formatTime(currentTime)}</span>
-          <span>/</span>
-          <span>{formatTime(track.durationSeconds)}</span>
+        <div className="hidden items-center justify-end gap-3 text-xs text-neutral-400 sm:flex">
+          <label className="flex items-center gap-2" aria-label="Volume">
+            <span aria-hidden="true">🔊</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              className="h-1 w-20 cursor-pointer accent-white"
+            />
+          </label>
+          <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
         </div>
+
+        <label className="col-span-2 flex items-center gap-2 text-xs text-neutral-400 sm:col-span-3">
+          <span className="w-8 shrink-0 text-right">{formatTime(currentTime)}</span>
+          <input
+            type="range"
+            min="0"
+            max={Math.max(duration, 1)}
+            step="0.1"
+            value={Math.min(currentTime, duration || currentTime)}
+            onChange={(e) => {
+              const time = Number(e.target.value);
+              const audio = audioRef.current;
+              if (audio) audio.currentTime = time;
+              setCurrentTime(time);
+            }}
+            className="h-1 min-w-0 flex-1 cursor-pointer accent-white"
+            aria-label="Seek through track"
+          />
+          <span className="w-8 shrink-0">{formatTime(duration)}</span>
+        </label>
       </div>
     </div>
   );

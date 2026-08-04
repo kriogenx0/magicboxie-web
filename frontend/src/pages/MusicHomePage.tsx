@@ -19,9 +19,10 @@ export function MusicHomePage() {
   }
 
   return (
-    <div className="px-4 py-6 sm:px-8">
-      <h1 className="mb-4 text-lg font-semibold text-neutral-100">Artists</h1>
-      <div className="flex flex-wrap gap-5">
+    <div className="px-4 py-8 sm:px-10 sm:py-10">
+      <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-neutral-500">Your collection</p>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-neutral-100">Music</h1>
+      <div className="flex flex-wrap gap-4 sm:gap-5">
         {artists!.map((artist) => (
           <MusicTile key={artist.id} to={`/music/artists/${artist.id}`} title={artist.name} round />
         ))}

@@ -18,34 +18,37 @@ export function Hero({ movies }: { movies: Movie[] }) {
   const movie = movies[index % movies.length];
 
   return (
-    <div className="relative h-[46vh] min-h-[320px] w-full overflow-hidden sm:h-[60vh]">
+    <section className="relative -mt-16 h-[62vh] min-h-[430px] w-full overflow-hidden sm:-mt-[68px] sm:h-[76vh] sm:min-h-[520px]">
       {movie.hasBackdrop ? (
         <img
           key={movie.id}
           src={movieImageUrl(movie.id, "backdrop")}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+          className="absolute inset-0 h-full w-full object-cover object-[62%_center] transition-opacity duration-700"
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-black" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/30 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/45 to-transparent" />
 
-      <div className="absolute bottom-0 left-0 max-w-xl p-4 sm:p-10">
-        <h1 className="mb-2 text-3xl font-bold drop-shadow-lg sm:text-5xl">{movie.title}</h1>
+      <div className="absolute bottom-10 left-0 max-w-2xl px-4 sm:bottom-16 sm:px-10 lg:px-14">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-neutral-200/90">MagicBox presents</p>
+        <h1 className="mb-4 text-4xl font-extrabold tracking-tight drop-shadow-lg sm:text-6xl lg:text-7xl">{movie.title}</h1>
         {movie.overview && (
-          <p className="mb-4 line-clamp-3 text-sm text-neutral-200 drop-shadow sm:text-base">
+          <p className="mb-6 line-clamp-3 max-w-xl text-sm leading-relaxed text-neutral-100 drop-shadow sm:text-base lg:text-lg">
             {movie.overview}
           </p>
         )}
-        <Link
-          to={`/movies/${movie.id}`}
-          className="inline-block rounded bg-white px-5 py-2 font-semibold text-black transition hover:bg-neutral-200"
-        >
-          View details
-        </Link>
+        <div className="flex gap-3">
+          <Link to={`/movies/${movie.id}`} className="inline-flex items-center gap-2 rounded-sm bg-white px-5 py-2.5 text-sm font-bold text-black transition hover:bg-white/80">
+            <span className="text-base leading-none">▶</span> Details
+          </Link>
+          <Link to={`/movies/${movie.id}`} className="inline-flex items-center gap-2 rounded-sm bg-neutral-500/70 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-500/50">
+            <span className="text-base leading-none">ⓘ</span> More Info
+          </Link>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
