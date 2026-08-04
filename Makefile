@@ -4,11 +4,14 @@ IMAGE := magicbox
 # (docker-compose.yml), so both can run side by side without a port clash.
 URL := $(if $(MAGICBOX_URL),$(MAGICBOX_URL),http://localhost:8090)
 
-.PHONY: build build-local build-web build-go run run-local dev open test tidy
+.PHONY: default build build-local build-web build-go run run-local dev deploy open test tidy
 
-# Default target: builds the full multi-stage Docker image (frontend, Go
-# binary, ffmpeg runtime) -- no local node/npm/go toolchain required, and
-# this is what actually gets deployed (see Dockerfile/docker-compose.yml).
+# Keep the no-argument workflow aligned with `make dev`.
+default: dev
+
+# Builds the full multi-stage Docker image (frontend, Go binary, ffmpeg
+# runtime) -- no local node/npm/go toolchain required, and this is what gets
+# deployed (see Dockerfile/docker-compose.yml).
 build:
 	docker build -t $(IMAGE) .
 
@@ -71,6 +74,12 @@ dev: build-local
 		fi \
 	) &
 	MAGICBOX_CONFIG=configs/magicbox.local.yaml ./bin/$(BINARY)
+
+# Deploy the published container image and refresh this app's production
+# compose/nginx/TLS configuration. Server bootstrap remains a one-time task
+# handled by deploy/server_setup.sh.
+deploy:
+	./deploy/deploy.sh
 
 # Opens the running server in the default browser. Override the target URL
 # with MAGICBOX_URL=... if your local config listens on a different address.

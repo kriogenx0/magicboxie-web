@@ -1,0 +1,20 @@
+# Narrow, app-specific sudo grant for the `deploy` account, on top of the
+# shared grant ~/Sites/server-config's bootstrap.sh installs (mkdir/chown
+# under /var/www/*, ln -sf/rm -f under sites-available|enabled/*, nginx -t,
+# systemctl reload nginx -- all wildcarded across every site). This file
+# adds only what's specific to *this* app: writing its own vhost content,
+# and its one certbot invocation, scoped to its own domain.
+#
+# Not installed automatically -- deploy has no sudo to install its own
+# sudoers rules (that's the point). Install once, by hand, as admin:
+#   scp deploy/server/sudoers.d/magicbox-web admin@104.131.183.186:/tmp/
+#   ssh admin@104.131.183.186 'sudo visudo -c -f /tmp/magicbox-web && sudo install -m 0440 -o root -g root /tmp/magicbox-web /etc/sudoers.d/magicbox-web && rm /tmp/magicbox-web'
+#
+# The certbot line's exact wording must match deploy/deploy.sh's own
+# invocation verbatim (sudoers NOPASSWD matching is a literal string
+# comparison against the command actually run) -- if deploy.sh's certbot
+# command ever changes, this file needs the same edit, and a re-install.
+deploy ALL=(root) NOPASSWD: \
+  /usr/bin/cp /tmp/magicboxie.com.conf /etc/nginx/sites-available/magicboxie.com, \
+  /usr/bin/cp /tmp/magicboxie.com.bootstrap.conf /etc/nginx/sites-available/magicboxie.com, \
+  /usr/bin/certbot certonly --webroot -w /var/www/certbot -d magicboxie.com -d www.magicboxie.com --non-interactive --agree-tos -m simplex0@gmail.com --deploy-hook "systemctl reload nginx"
