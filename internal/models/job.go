@@ -4,7 +4,7 @@ import "time"
 
 const (
 	JobTypeTranscode = "transcode"
-	JobTypeThumbnail = "thumbnail_gif"
+	JobTypeThumbnail = "thumbnail_images"
 
 	JobStatusQueued    = "queued"
 	JobStatusRunning   = "running"

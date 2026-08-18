@@ -159,6 +159,33 @@ func (im *Importer) SearchTMDB(ctx context.Context, title string, year int) ([]t
 	return im.tmdb.SearchMovie(ctx, title, year)
 }
 
+// EnsureThumbnailCandidates lazily migrates a legacy animated poster to the
+// JPEG still-frame picker, avoiding a burst of ffmpeg work across the entire
+// existing library.
+func (im *Importer) EnsureThumbnailCandidates(ctx context.Context, movie *models.Movie) error {
+	candidatePath := filepath.Join(im.dataDir, "images", "thumbnails", fmt.Sprintf("%d", movie.ID), "0.jpg")
+	if _, err := os.Stat(candidatePath); err == nil {
+		if strings.EqualFold(filepath.Ext(movie.PosterPath), ".jpg") {
+			return nil
+		}
+		middleCandidate := filepath.Join(im.dataDir, "images", "thumbnails", fmt.Sprintf("%d", movie.ID), "2.jpg")
+		posterPath := filepath.Join(im.dataDir, "images", "posters", fmt.Sprintf("%d.jpg", movie.ID))
+		if err := copyFile(middleCandidate, posterPath); err != nil {
+			return err
+		}
+		movie.PosterPath = fmt.Sprintf("posters/%d.jpg", movie.ID)
+		movie.PosterIsGenerated = true
+		return im.db.Save(movie).Error
+	}
+
+	absPath := filepath.Join(im.moviesDir, movie.SourceRelpath)
+	im.generateFallbackThumbnail(ctx, movie, absPath)
+	if _, err := os.Stat(candidatePath); err != nil {
+		return fmt.Errorf("generating thumbnail candidates: %w", err)
+	}
+	return im.db.Save(movie).Error
+}
+
 func (im *Importer) matchMetadata(ctx context.Context, movie *models.Movie, absPath, title string, year int) {
 	results, err := im.tmdb.SearchMovie(ctx, title, year)
 	if err != nil && !errors.Is(err, tmdb.ErrNotConfigured) {
@@ -216,6 +243,7 @@ func (im *Importer) applyTMDBDetails(ctx context.Context, movie *models.Movie, d
 		log.Printf("library: poster download failed for movie %d: %v", movie.ID, err)
 	} else if details.PosterPath != "" {
 		movie.PosterPath = fmt.Sprintf("posters/%d.jpg", movie.ID)
+		movie.PosterIsGenerated = false
 	}
 
 	backdropDest := filepath.Join(im.dataDir, "images", "backdrops", fmt.Sprintf("%d.jpg", movie.ID))
@@ -228,11 +256,31 @@ func (im *Importer) applyTMDBDetails(ctx context.Context, movie *models.Movie, d
 
 func (im *Importer) generateFallbackThumbnail(ctx context.Context, movie *models.Movie, absPath string) {
 	movie.NeedsReview = true
-	destPath := filepath.Join(im.dataDir, "images", "posters", fmt.Sprintf("%d.gif", movie.ID))
-	if err := thumbnail.Generate(ctx, absPath, movie.DurationSeconds, destPath); err != nil {
+	candidateDir := filepath.Join(im.dataDir, "images", "thumbnails", fmt.Sprintf("%d", movie.ID))
+	candidates, err := thumbnail.GenerateCandidates(ctx, absPath, movie.DurationSeconds, candidateDir)
+	if err != nil {
 		log.Printf("library: thumbnail generation failed for movie %d: %v", movie.ID, err)
 		return
 	}
-	movie.PosterPath = fmt.Sprintf("posters/%d.gif", movie.ID)
+
+	// Start with the middle frame. The user can choose any candidate from the
+	// movie detail page without re-running ffmpeg.
+	destPath := filepath.Join(im.dataDir, "images", "posters", fmt.Sprintf("%d.jpg", movie.ID))
+	if err := copyFile(candidates[len(candidates)/2].Path, destPath); err != nil {
+		log.Printf("library: selecting initial thumbnail failed for movie %d: %v", movie.ID, err)
+		return
+	}
+	movie.PosterPath = fmt.Sprintf("posters/%d.jpg", movie.ID)
 	movie.PosterIsGenerated = true
+}
+
+func copyFile(sourcePath, destPath string) error {
+	data, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(destPath, data, 0o644)
 }

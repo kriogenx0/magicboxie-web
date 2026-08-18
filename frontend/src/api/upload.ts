@@ -15,7 +15,7 @@ interface UploadStatusResponse {
 
 async function putChunk(uploadId: string, offset: number, chunk: Blob): Promise<number> {
   const token = getToken();
-  const res = await fetch(`/magicbox/uploads/${uploadId}/chunk?offset=${offset}`, {
+  const res = await fetch(`/api/uploads/${uploadId}/chunk?offset=${offset}`, {
     method: "PUT",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -57,7 +57,7 @@ export async function uploadFile(
   file: File,
   onProgress: (receivedBytes: number, totalBytes: number) => void,
 ): Promise<{ kind: string; status: string }> {
-  const created = await apiFetch<CreateUploadResponse>("/magicbox/uploads", {
+  const created = await apiFetch<CreateUploadResponse>("/api/uploads", {
     method: "POST",
     body: JSON.stringify({ filename: file.name, size_bytes: file.size }),
   });
@@ -86,11 +86,11 @@ export async function uploadFile(
         await sleep(Math.min(1000 * 2 ** attempt, 15000));
 
         // Resync in case some bytes did land before the failure.
-        const status = await apiFetch<UploadStatusResponse>(`/magicbox/uploads/${uploadId}`);
+        const status = await apiFetch<UploadStatusResponse>(`/api/uploads/${uploadId}`);
         offset = status.received_bytes;
       }
     }
   }
 
-  return apiFetch(`/magicbox/uploads/${uploadId}/complete`, { method: "POST" });
+  return apiFetch(`/api/uploads/${uploadId}/complete`, { method: "POST" });
 }

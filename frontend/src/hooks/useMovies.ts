@@ -6,6 +6,7 @@ import {
   type JellyfinItem,
   type Movie,
   type TMDBSearchResult,
+  type ThumbnailCandidate,
 } from "../api/types";
 
 // "1" is the fixed single-user id -- MagicBox has one shared login, not
@@ -42,7 +43,7 @@ export function useMovie(id: number) {
 export async function searchTMDB(query: string, year?: number): Promise<TMDBSearchResult[]> {
   const params = new URLSearchParams({ query });
   if (year) params.set("year", String(year));
-  const res = await apiFetch<{ results: TMDBSearchResult[] }>(`/magicbox/items/search?${params}`);
+  const res = await apiFetch<{ results: TMDBSearchResult[] }>(`/api/items/search?${params}`);
   return res.results;
 }
 
@@ -50,9 +51,46 @@ export function useApplyMatch(movieId: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (tmdbId: number) =>
-      apiFetch(`/magicbox/items/movie-${movieId}/match`, {
+      apiFetch(`/api/items/movie-${movieId}/match`, {
         method: "POST",
         body: JSON.stringify({ tmdb_id: tmdbId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["movies"] });
+    },
+  });
+}
+
+export async function getThumbnailCandidates(movieId: number): Promise<ThumbnailCandidate[]> {
+  const res = await apiFetch<{ candidates: ThumbnailCandidate[] }>(
+    `/api/items/movie-${movieId}/thumbnails`,
+  );
+  return res.candidates;
+}
+
+export function useSelectThumbnail(movieId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (index: number) =>
+      apiFetch(`/api/items/movie-${movieId}/thumbnails/select`, {
+        method: "POST",
+        body: JSON.stringify({ index }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["movies"] });
+    },
+  });
+}
+
+// Marks/unmarks a movie as available to magicboxie-device Pis, which only
+// download items with syncEnabled set (see POST /devices/register).
+export function useSetDeviceSync(movieId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      apiFetch(`/api/items/movie-${movieId}/sync`, {
+        method: "POST",
+        body: JSON.stringify({ enabled }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["movies"] });

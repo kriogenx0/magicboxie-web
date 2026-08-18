@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -37,10 +39,10 @@ func NewItemsController(db *gorm.DB, importer *library.Importer, musicImporter *
 // ---- Jellyfin response shapes ----
 //
 // Fields are PascalCase to match real Jellyfin's wire format exactly (see
-// magicbox-appletv's JellyfinItem.swift CodingKeys). The MagicBox*-prefixed
+// magicbox-appletv's JellyfinItem.swift CodingKeys). The MagicBoxie*-prefixed
 // fields are additive extensions real/generic Jellyfin clients simply
-// ignore (unknown JSON keys are dropped by Codable), while MagicBox-aware
-// clients (the web frontend, magicbox-device's home-sync) read them for
+// ignore (unknown JSON keys are dropped by Codable), while MagicBoxie-aware
+// clients (the web frontend, magicboxie-device's home-sync) read them for
 // status/progress/original-filename that plain Jellyfin has no concept of.
 //
 // Movies, artists, albums, and tracks each have their own auto-incrementing
@@ -82,10 +84,12 @@ type jellyfinItem struct {
 	IndexNumber       int    `json:"IndexNumber,omitempty"`
 	ParentIndexNumber int    `json:"ParentIndexNumber,omitempty"`
 
-	MagicBoxStatus           string   `json:"MagicBoxStatus"`
-	MagicBoxProgressPercent  *float64 `json:"MagicBoxProgressPercent,omitempty"`
-	MagicBoxOriginalFilename string   `json:"MagicBoxOriginalFilename"`
-	MagicBoxNeedsReview      bool     `json:"MagicBoxNeedsReview"`
+	MagicBoxieStatus            string   `json:"MagicBoxieStatus"`
+	MagicBoxieProgressPercent   *float64 `json:"MagicBoxieProgressPercent,omitempty"`
+	MagicBoxieOriginalFilename  string   `json:"MagicBoxieOriginalFilename"`
+	MagicBoxieNeedsReview       bool     `json:"MagicBoxieNeedsReview"`
+	MagicBoxiePosterIsGenerated bool     `json:"MagicBoxiePosterIsGenerated"`
+	MagicBoxieSyncEnabled       bool     `json:"MagicBoxieSyncEnabled"`
 }
 
 type itemsResponse struct {
@@ -117,16 +121,18 @@ func parseItemID(raw, wantKind string) (id uint, ok bool) {
 
 func movieToItem(m models.Movie) jellyfinItem {
 	item := jellyfinItem{
-		Id:                       formatItemID("movie", m.ID),
-		Name:                     m.Title,
-		Type:                     "Movie",
-		Overview:                 m.Overview,
-		ProductionYear:           m.Year,
-		RunTimeTicks:             int64(m.DurationSeconds * ticksPerSecond),
-		DateCreated:              m.AddedAt.UTC().Format(time.RFC3339),
-		MagicBoxStatus:           m.Status,
-		MagicBoxOriginalFilename: m.OriginalFilename,
-		MagicBoxNeedsReview:      m.NeedsReview,
+		Id:                        formatItemID("movie", m.ID),
+		Name:                      m.Title,
+		Type:                      "Movie",
+		Overview:                  m.Overview,
+		ProductionYear:            m.Year,
+		RunTimeTicks:              int64(m.DurationSeconds * ticksPerSecond),
+		DateCreated:               m.AddedAt.UTC().Format(time.RFC3339),
+		MagicBoxieStatus:            m.Status,
+		MagicBoxieOriginalFilename:  m.OriginalFilename,
+		MagicBoxieNeedsReview:       m.NeedsReview,
+		MagicBoxiePosterIsGenerated: m.PosterIsGenerated,
+		MagicBoxieSyncEnabled:       m.SyncEnabled,
 	}
 
 	if m.GenresJSON != "" {
@@ -199,7 +205,7 @@ func trackToItem(t models.Track, albumTitle, artistName string) jellyfinItem {
 		AlbumArtist:       artistName,
 		IndexNumber:       t.TrackNumber,
 		ParentIndexNumber: t.DiscNumber,
-		MagicBoxStatus:    models.MovieStatusReady, // tracks need no compatibility processing
+		MagicBoxieStatus:  models.MovieStatusReady, // tracks need no compatibility processing
 	}
 	if t.Codec != "" {
 		item.MediaStreams = append(item.MediaStreams, jellyfinMediaStream{Type: "Audio", Codec: t.Codec})
@@ -445,6 +451,12 @@ func (ic *ItemsController) PrimaryImage(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if movie.PosterIsGenerated && !strings.EqualFold(filepath.Ext(movie.PosterPath), ".jpg") {
+		if err := ic.importer.EnsureThumbnailCandidates(c.Request.Context(), &movie); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to migrate generated poster"})
+			return
+		}
+	}
 	if movie.PosterPath == "" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "no poster"})
 		return
@@ -462,6 +474,116 @@ func (ic *ItemsController) BackdropImage(c *gin.Context) {
 		return
 	}
 	serveImageFile(c, filepath.Join(ic.dataDir, "images", movie.BackdropPath))
+}
+
+// ThumbnailCandidateImage serves one of the still frames generated when no
+// metadata poster was available. Like other image routes, it is public so an
+// <img> element does not need to attach an auth header.
+func (ic *ItemsController) ThumbnailCandidateImage(c *gin.Context) {
+	movie, ok := ic.loadMovie(c)
+	if !ok {
+		return
+	}
+	index, err := strconv.Atoi(c.Param("index"))
+	if err != nil || index < 0 || index > 4 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid thumbnail index"})
+		return
+	}
+	serveImageFile(c, filepath.Join(ic.dataDir, "images", "thumbnails", fmt.Sprintf("%d", movie.ID), fmt.Sprintf("%d.jpg", index)))
+}
+
+// ThumbnailCandidates lists the still frames available for a generated
+// poster. Missing files are omitted so partially generated legacy data fails
+// gracefully.
+func (ic *ItemsController) ThumbnailCandidates(c *gin.Context) {
+	movie, ok := ic.loadMovie(c)
+	if !ok {
+		return
+	}
+	if movie.PosterIsGenerated {
+		if err := ic.importer.EnsureThumbnailCandidates(c.Request.Context(), &movie); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	selectedPoster, _ := os.ReadFile(filepath.Join(ic.dataDir, "images", movie.PosterPath))
+	candidates := make([]gin.H, 0, 5)
+	for index := 0; index < 5; index++ {
+		path := filepath.Join(ic.dataDir, "images", "thumbnails", fmt.Sprintf("%d", movie.ID), fmt.Sprintf("%d.jpg", index))
+		if candidateData, err := os.ReadFile(path); err == nil {
+			candidates = append(candidates, gin.H{
+				"index":    index,
+				"url":      fmt.Sprintf("/Items/movie-%d/Images/Thumbnail/%d", movie.ID, index),
+				"selected": bytes.Equal(selectedPoster, candidateData),
+			})
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"candidates": candidates})
+}
+
+type selectThumbnailRequest struct {
+	Index *int `json:"index" binding:"required"`
+}
+
+// SelectThumbnail copies a candidate still into the movie's primary poster.
+func (ic *ItemsController) SelectThumbnail(c *gin.Context) {
+	movie, ok := ic.loadMovie(c)
+	if !ok {
+		return
+	}
+	var req selectThumbnailRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Index == nil || *req.Index < 0 || *req.Index > 4 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "index must be between 0 and 4"})
+		return
+	}
+
+	sourcePath := filepath.Join(ic.dataDir, "images", "thumbnails", fmt.Sprintf("%d", movie.ID), fmt.Sprintf("%d.jpg", *req.Index))
+	data, err := os.ReadFile(sourcePath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "thumbnail candidate not found"})
+		return
+	}
+	destPath := filepath.Join(ic.dataDir, "images", "posters", fmt.Sprintf("%d.jpg", movie.ID))
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to prepare poster directory"})
+		return
+	}
+	if err := os.WriteFile(destPath, data, 0o644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save poster"})
+		return
+	}
+	movie.PosterPath = fmt.Sprintf("posters/%d.jpg", movie.ID)
+	movie.PosterIsGenerated = true
+	if err := ic.db.Save(&movie).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update movie"})
+		return
+	}
+	c.JSON(http.StatusOK, movieToItem(movie))
+}
+
+type setSyncRequest struct {
+	Enabled *bool `json:"enabled" binding:"required"`
+}
+
+// SetDeviceSync marks or unmarks a movie as available to magicboxie-device
+// Pis (see RegisterDevice) -- only movies with SyncEnabled set are ever
+// offered to a device's opportunistic home-sync check-in.
+func (ic *ItemsController) SetDeviceSync(c *gin.Context) {
+	movie, ok := ic.loadMovie(c)
+	if !ok {
+		return
+	}
+	var req setSyncRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Enabled == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enabled is required"})
+		return
+	}
+	movie.SyncEnabled = *req.Enabled
+	if err := ic.db.Save(&movie).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update movie"})
+		return
+	}
+	c.JSON(http.StatusOK, movieToItem(movie))
 }
 
 type matchRequest struct {
@@ -566,6 +688,44 @@ func (ic *ItemsController) MusicScan(c *gin.Context) {
 		log.Printf("music library scan: imported %d new track(s)", n)
 	}()
 	c.JSON(http.StatusAccepted, gin.H{"status": "scanning"})
+}
+
+type registerDeviceRequest struct {
+	DeviceID string `json:"device_id" binding:"required"`
+}
+
+// RegisterDevice is magicboxie-device's home_sync_service.py check-in: an
+// unauthenticated, low-friction alternative to the Jellyfin login flow
+// (device Pis have no interactive way to type a password each boot). It
+// upserts the calling device's last-seen time for visibility, and returns
+// only the movies explicitly marked SyncEnabled (see SetDeviceSync) and
+// ready to play -- everything else in the library is left alone, since a
+// device's local storage is finite and the point of "select videos" is
+// the user choosing what a given Pi carries.
+func (ic *ItemsController) RegisterDevice(c *gin.Context) {
+	var req registerDeviceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "device_id is required"})
+		return
+	}
+
+	device := models.Device{DeviceID: req.DeviceID, LastSeenAt: time.Now().UTC()}
+	if err := ic.db.Where(models.Device{DeviceID: req.DeviceID}).Assign(device).FirstOrCreate(&device).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register device"})
+		return
+	}
+
+	var movies []models.Movie
+	if err := ic.db.Where("status = ? AND sync_enabled = ?", models.MovieStatusReady, true).
+		Order("added_at desc").Find(&movies).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list synced items"})
+		return
+	}
+	items := make([]jellyfinItem, len(movies))
+	for i, m := range movies {
+		items[i] = movieToItem(m)
+	}
+	c.JSON(http.StatusOK, itemsResponse{Items: items, TotalRecordCount: len(items)})
 }
 
 func (ic *ItemsController) loadMovie(c *gin.Context) (models.Movie, bool) {

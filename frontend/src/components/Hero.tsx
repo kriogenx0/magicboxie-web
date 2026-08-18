@@ -18,7 +18,7 @@ export function Hero({ movies }: { movies: Movie[] }) {
   const movie = movies[index % movies.length];
 
   return (
-    <section className="relative -mt-16 h-[62vh] min-h-[430px] w-full overflow-hidden sm:-mt-[68px] sm:h-[76vh] sm:min-h-[520px]">
+    <section className="relative h-[38vh] w-full overflow-hidden sm:h-[44vh]">
       {movie.hasBackdrop ? (
         <img
           key={movie.id}
@@ -32,7 +32,7 @@ export function Hero({ movies }: { movies: Movie[] }) {
       <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/30 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-black via-black/45 to-transparent" />
 
-      <div className="absolute bottom-10 left-0 max-w-2xl px-4 sm:bottom-16 sm:px-10 lg:px-14">
+      <div className="absolute bottom-2 left-0 max-w-2xl px-4 sm:bottom-4 sm:px-10 lg:px-14">
         <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-neutral-200/90">MagicBox presents</p>
         <h1 className="mb-4 text-4xl font-extrabold tracking-tight drop-shadow-lg sm:text-6xl lg:text-7xl">{movie.title}</h1>
         {movie.overview && (

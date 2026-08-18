@@ -30,6 +30,7 @@ func Open(dataDir string) (*gorm.DB, error) {
 		&models.Artist{},
 		&models.Album{},
 		&models.Track{},
+		&models.Device{},
 	); err != nil {
 		return nil, fmt.Errorf("running auto-migrations: %w", err)
 	}

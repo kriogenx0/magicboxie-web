@@ -17,7 +17,7 @@ export function useLiveEvents() {
     const token = getToken();
     if (!token) return;
 
-    const source = new EventSource(`/magicbox/events?api_key=${encodeURIComponent(token)}`);
+    const source = new EventSource(`/api/events?api_key=${encodeURIComponent(token)}`);
 
     source.onmessage = (e) => {
       let evt: ServerEvent;

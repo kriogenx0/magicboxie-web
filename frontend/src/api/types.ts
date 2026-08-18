@@ -48,10 +48,12 @@ export interface JellyfinItem {
   IndexNumber?: number;
   ParentIndexNumber?: number;
 
-  MagicBoxStatus: MovieStatus;
-  MagicBoxProgressPercent?: number | null;
-  MagicBoxOriginalFilename: string;
-  MagicBoxNeedsReview: boolean;
+  MagicBoxieStatus: MovieStatus;
+  MagicBoxieProgressPercent?: number | null;
+  MagicBoxieOriginalFilename: string;
+  MagicBoxieNeedsReview: boolean;
+  MagicBoxiePosterIsGenerated: boolean;
+  MagicBoxieSyncEnabled: boolean;
 }
 
 export interface ItemsResponse {
@@ -75,8 +77,10 @@ export interface Movie {
   hasBackdrop: boolean;
   status: MovieStatus;
   needsReview: boolean;
+  posterIsGenerated: boolean;
   originalFilename: string;
   addedAt: string;
+  syncEnabled: boolean;
 }
 
 const TICKS_PER_SECOND = 10_000_000;
@@ -103,10 +107,12 @@ export function mapItemToMovie(item: JellyfinItem): Movie {
     runtimeSeconds: (item.RunTimeTicks ?? 0) / TICKS_PER_SECOND,
     hasPoster: Boolean(item.ImageTags?.Primary),
     hasBackdrop: Boolean(item.BackdropImageTags && item.BackdropImageTags.length > 0),
-    status: item.MagicBoxStatus || "ready",
-    needsReview: Boolean(item.MagicBoxNeedsReview),
-    originalFilename: item.MagicBoxOriginalFilename ?? "",
+    status: item.MagicBoxieStatus || "ready",
+    needsReview: Boolean(item.MagicBoxieNeedsReview),
+    posterIsGenerated: Boolean(item.MagicBoxiePosterIsGenerated),
+    originalFilename: item.MagicBoxieOriginalFilename ?? "",
     addedAt: item.DateCreated ?? new Date(0).toISOString(),
+    syncEnabled: Boolean(item.MagicBoxieSyncEnabled),
   };
 }
 
@@ -172,6 +178,12 @@ export interface TMDBSearchResult {
   year?: number;
   overview?: string;
   poster_url?: string;
+}
+
+export interface ThumbnailCandidate {
+  index: number;
+  url: string;
+  selected: boolean;
 }
 
 // ---- SSE job-progress events (MagicBox-specific, not part of Jellyfin) ----

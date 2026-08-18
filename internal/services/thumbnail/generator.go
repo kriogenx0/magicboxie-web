@@ -1,80 +1,51 @@
-// Package thumbnail generates a fallback "poster" GIF from random frames of
-// a movie when no TMDB match was found.
+// Package thumbnail generates still-frame poster candidates from a movie when
+// no TMDB match was found.
 package thumbnail
 
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-const frameCount = 6
+var candidatePositions = []float64{0.10, 0.30, 0.50, 0.70, 0.90}
 
-// Generate builds an animated GIF from frameCount random frames spread
-// across the middle 80% of the video's runtime (avoiding black intro/credit
-// sequences), each held for ~2 seconds, and writes the result to destPath.
-func Generate(ctx context.Context, sourcePath string, durationSeconds float64, destPath string) error {
+type Candidate struct {
+	Index            int
+	TimestampSeconds float64
+	Path             string
+}
+
+// GenerateCandidates extracts a few deterministic JPEG frames spread across
+// the movie. Each file is kept so the user can choose the best poster later.
+func GenerateCandidates(ctx context.Context, sourcePath string, durationSeconds float64, destDir string) ([]Candidate, error) {
 	if durationSeconds <= 0 {
-		return fmt.Errorf("thumbnail: unknown duration for %q", sourcePath)
+		return nil, fmt.Errorf("thumbnail: unknown duration for %q", sourcePath)
+	}
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return nil, err
 	}
 
-	lo := durationSeconds * 0.10
-	hi := durationSeconds * 0.90
-
-	tmpDir, err := os.MkdirTemp("", "magicbox-thumb-*")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
-
-	for i := 0; i < frameCount; i++ {
-		ts := lo + rand.Float64()*(hi-lo)
-		framePath := filepath.Join(tmpDir, fmt.Sprintf("frame-%02d.png", i))
+	candidates := make([]Candidate, 0, len(candidatePositions))
+	for i, position := range candidatePositions {
+		timestamp := durationSeconds * position
+		path := filepath.Join(destDir, fmt.Sprintf("%d.jpg", i))
 		cmd := exec.CommandContext(ctx, "ffmpeg",
-			"-y",
-			"-ss", fmt.Sprintf("%.2f", ts),
+			"-y", "-v", "error",
+			"-ss", fmt.Sprintf("%.2f", timestamp),
 			"-i", sourcePath,
-			"-vframes", "1",
+			"-frames:v", "1",
 			"-vf", "scale=342:-1",
-			framePath,
+			"-q:v", "2",
+			path,
 		)
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("thumbnail: extracting frame %d: %w: %s", i, err, out)
+			return nil, fmt.Errorf("thumbnail: extracting candidate %d: %w: %s", i, err, out)
 		}
+		candidates = append(candidates, Candidate{Index: i, TimestampSeconds: timestamp, Path: path})
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-		return err
-	}
-
-	framePattern := filepath.Join(tmpDir, "frame-%02d.png")
-	palettePath := filepath.Join(tmpDir, "palette.png")
-
-	paletteCmd := exec.CommandContext(ctx, "ffmpeg",
-		"-y",
-		"-framerate", "0.5",
-		"-i", framePattern,
-		"-vf", "palettegen",
-		palettePath,
-	)
-	if out, err := paletteCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("thumbnail: generating palette: %w: %s", err, out)
-	}
-
-	gifCmd := exec.CommandContext(ctx, "ffmpeg",
-		"-y",
-		"-framerate", "0.5",
-		"-i", framePattern,
-		"-i", palettePath,
-		"-lavfi", "paletteuse",
-		destPath,
-	)
-	if out, err := gifCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("thumbnail: assembling gif: %w: %s", err, out)
-	}
-
-	return nil
+	return candidates, nil
 }

@@ -27,18 +27,25 @@ type Dependencies struct {
 //     Jellyfin client work against this server unmodified.
 //  2. MagicBox-specific extensions with no Jellyfin equivalent (chunked
 //     upload, library scan trigger, SSE job-progress, manual TMDB
-//     re-match), namespaced under /magicbox/* so they're clearly separate
+//     re-match), namespaced under /api/* so they're clearly separate
 //     from the standard surface.
 func Register(router *gin.Engine, deps Dependencies) {
 	router.GET("/System/Info/Public", deps.AuthController.SystemInfoPublic)
 	router.POST("/Users/AuthenticateByName", deps.AuthController.AuthenticateByName)
 
+	// Unauthenticated check-in for magicboxie-device Pis (see
+	// player_app/views/home_sync_service.py in that repo) -- a lower-friction
+	// alternative to the Jellyfin login flow above for a headless device that
+	// boots straight into opportunistic sync.
+	router.POST("/devices/register", deps.ItemsController.RegisterDevice)
+
 	// Images are unauthenticated, matching real Jellyfin's convention (so
 	// <img> tags never need a token).
 	router.GET("/Items/:itemId/Images/Primary", deps.ItemsController.PrimaryImage)
 	router.GET("/Items/:itemId/Images/Backdrop/:index", deps.ItemsController.BackdropImage)
+	router.GET("/Items/:itemId/Images/Thumbnail/:index", deps.ItemsController.ThumbnailCandidateImage)
 
-	router.GET("/magicbox/health", controllers.Health)
+	router.GET("/api/health", controllers.Health)
 
 	authorized := router.Group("")
 	authorized.Use(middleware.RequireAuth(deps.AuthManager))
@@ -59,19 +66,22 @@ func Register(router *gin.Engine, deps Dependencies) {
 		authorized.POST("/Sessions/Playing/Progress", controllers.PlayingProgress)
 		authorized.POST("/Sessions/Playing/Stopped", controllers.PlayingStopped)
 
-		magicbox := authorized.Group("/magicbox")
+		api := authorized.Group("/api")
 		{
-			magicbox.POST("/library/scan", deps.ItemsController.Scan)
-			magicbox.POST("/library/music/scan", deps.ItemsController.MusicScan)
-			magicbox.POST("/items/:itemId/match", deps.ItemsController.Match)
-			magicbox.GET("/items/search", deps.ItemsController.Search)
+			api.POST("/library/scan", deps.ItemsController.Scan)
+			api.POST("/library/music/scan", deps.ItemsController.MusicScan)
+			api.POST("/items/:itemId/match", deps.ItemsController.Match)
+			api.GET("/items/:itemId/thumbnails", deps.ItemsController.ThumbnailCandidates)
+			api.POST("/items/:itemId/thumbnails/select", deps.ItemsController.SelectThumbnail)
+			api.POST("/items/:itemId/sync", deps.ItemsController.SetDeviceSync)
+			api.GET("/items/search", deps.ItemsController.Search)
 
-			magicbox.POST("/uploads", deps.UploadsController.Create)
-			magicbox.GET("/uploads/:id", deps.UploadsController.Status)
-			magicbox.PUT("/uploads/:id/chunk", deps.UploadsController.Chunk)
-			magicbox.POST("/uploads/:id/complete", deps.UploadsController.Complete)
+			api.POST("/uploads", deps.UploadsController.Create)
+			api.GET("/uploads/:id", deps.UploadsController.Status)
+			api.PUT("/uploads/:id/chunk", deps.UploadsController.Chunk)
+			api.POST("/uploads/:id/complete", deps.UploadsController.Complete)
 
-			magicbox.GET("/events", controllers.Events(deps.EventsHub))
+			api.GET("/events", controllers.Events(deps.EventsHub))
 		}
 	}
 }

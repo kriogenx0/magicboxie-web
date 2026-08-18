@@ -34,6 +34,7 @@ type Movie struct {
 	Container         string    `json:"container"`
 	Status            string    `gorm:"not null;default:pending" json:"status"`
 	NeedsReview       bool      `json:"needs_review"`
+	SyncEnabled       bool      `json:"sync_enabled"`
 	ErrorMessage      string    `json:"error_message,omitempty"`
 	AddedAt           time.Time `gorm:"not null;autoCreateTime" json:"added_at"`
 	UpdatedAt         time.Time `gorm:"not null;autoUpdateTime" json:"updated_at"`

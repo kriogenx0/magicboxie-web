@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useMovie } from "../hooks/useMovies";
+import { getThumbnailCandidates, useMovie, useSelectThumbnail, useSetDeviceSync } from "../hooks/useMovies";
 import { movieImageUrl, movieStreamUrl, movieDownloadUrl } from "../api/client";
+import type { ThumbnailCandidate } from "../api/types";
 import { useTranscodeProgress } from "../hooks/useTranscodeProgress";
 import { MatchPicker } from "../components/MatchPicker";
 
@@ -18,9 +19,44 @@ export function MovieDetailPage() {
   const { data: movie, isLoading, error } = useMovie(movieId);
   const [showPlayer, setShowPlayer] = useState(false);
   const [showMatchPicker, setShowMatchPicker] = useState(false);
+  const [posterVersion, setPosterVersion] = useState(0);
+  const [generatedBackdropUrl, setGeneratedBackdropUrl] = useState<string | null>(null);
+  const [thumbnailCandidates, setThumbnailCandidates] = useState<ThumbnailCandidate[]>([]);
+  const [thumbnailError, setThumbnailError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
   const progress = useTranscodeProgress(movieId);
+  const selectThumbnail = useSelectThumbnail(movieId);
+  const setDeviceSync = useSetDeviceSync(movieId);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!movie?.posterIsGenerated) {
+      setGeneratedBackdropUrl(null);
+      setThumbnailCandidates([]);
+      return;
+    }
+
+    getThumbnailCandidates(movie.id)
+      .then((candidates) => {
+        if (cancelled) return;
+        setThumbnailCandidates(candidates);
+        setThumbnailError(null);
+        // Prefer a later frame for the wide hero, but never reuse the frame
+        // currently selected as the poster.
+        const backdrop = [...candidates].reverse().find((candidate) => !candidate.selected);
+        setGeneratedBackdropUrl(backdrop?.url ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setGeneratedBackdropUrl(null);
+          setThumbnailError("Could not load thumbnail choices.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [movie?.id, movie?.posterIsGenerated, posterVersion]);
 
   if (isLoading) {
     return <div className="p-8 text-neutral-400">Loading…</div>;
@@ -42,10 +78,16 @@ export function MovieDetailPage() {
 
   return (
     <div>
-      <div className="relative -mt-16 h-[55vh] min-h-[350px] w-full overflow-hidden sm:-mt-[68px] sm:h-[65vh]">
+      <div className="relative h-[55vh] min-h-[350px] w-full overflow-hidden sm:h-[65vh]">
         {movie.hasBackdrop ? (
           <img
             src={movieImageUrl(movie.id, "backdrop")}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : generatedBackdropUrl ? (
+          <img
+            src={`${generatedBackdropUrl}?v=${posterVersion}`}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -62,13 +104,13 @@ export function MovieDetailPage() {
         </button>
       </div>
 
-      <div className="relative z-10 mx-auto -mt-40 max-w-6xl px-4 pb-16 sm:-mt-52 sm:px-10">
+      <div className="relative z-10 mx-auto -mt-44 max-w-6xl px-4 pb-16 sm:-mt-60 sm:px-10">
         <div className="flex flex-col gap-6 sm:flex-row">
           <div className="hidden w-40 shrink-0 overflow-hidden rounded-sm bg-neutral-800 shadow-2xl sm:block sm:w-56">
             <div className="aspect-[2/3] w-full">
               {movie.hasPoster ? (
                 <img
-                  src={movieImageUrl(movie.id, "primary")}
+                  src={`${movieImageUrl(movie.id, "primary")}?v=${posterVersion}`}
                   alt={movie.title}
                   className="h-full w-full object-cover"
                 />
@@ -80,7 +122,7 @@ export function MovieDetailPage() {
             </div>
           </div>
 
-          <div className="flex-1 pt-2">
+          <div className="flex-1">
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">{movie.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-neutral-300">
               {movie.year > 0 && <span>{movie.year}</span>}
@@ -118,6 +160,50 @@ export function MovieDetailPage() {
 
             {movie.overview && <p className="mt-5 max-w-2xl leading-relaxed text-neutral-200">{movie.overview}</p>}
 
+            {movie.posterIsGenerated && (
+              <section className="mt-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-300">
+                  Choose thumbnail
+                </h2>
+                <p className="mt-1 text-sm text-neutral-400">
+                  Select a frame to use as the movie poster.
+                </p>
+                {thumbnailError && <p className="mt-3 text-sm text-red-400">{thumbnailError}</p>}
+                {selectThumbnail.isError && (
+                  <p className="mt-3 text-sm text-red-400">
+                    {selectThumbnail.error instanceof Error
+                      ? selectThumbnail.error.message
+                      : "Could not select thumbnail."}
+                  </p>
+                )}
+                <div className="mt-3 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {thumbnailCandidates.map((candidate) => (
+                    <button
+                      key={candidate.index}
+                      onClick={() =>
+                        selectThumbnail.mutate(candidate.index, {
+                          onSuccess: () => setPosterVersion((version) => version + 1),
+                        })
+                      }
+                      disabled={selectThumbnail.isPending}
+                      className={`group overflow-hidden rounded-sm border-2 bg-neutral-800 text-left transition hover:border-white disabled:opacity-50 ${
+                        candidate.selected ? "border-[#e50914]" : "border-transparent"
+                      }`}
+                    >
+                      <img
+                        src={candidate.url}
+                        alt={`Thumbnail option ${candidate.index + 1}`}
+                        className="aspect-video w-full object-cover"
+                      />
+                      <span className="block px-2 py-1.5 text-center text-xs font-medium text-neutral-300 group-hover:text-white">
+                        {candidate.selected ? "Current" : "Select"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {ready && (
               <div className="mt-7 flex gap-3">
                 <button
@@ -132,6 +218,18 @@ export function MovieDetailPage() {
                 >
                   Download
                 </a>
+                <button
+                  onClick={() => setDeviceSync.mutate(!movie.syncEnabled)}
+                  disabled={setDeviceSync.isPending}
+                  aria-pressed={movie.syncEnabled}
+                  className={`rounded-sm border px-6 py-2.5 font-bold transition disabled:opacity-50 ${
+                    movie.syncEnabled
+                      ? "border-transparent bg-[#e50914] text-white hover:bg-[#f6121d]"
+                      : "border-neutral-500 text-neutral-100 hover:border-white"
+                  }`}
+                >
+                  {movie.syncEnabled ? "✓ Synced to device" : "Sync to device"}
+                </button>
               </div>
             )}
 
@@ -186,6 +284,7 @@ export function MovieDetailPage() {
           onClose={() => setShowMatchPicker(false)}
         />
       )}
+
     </div>
   );
 }

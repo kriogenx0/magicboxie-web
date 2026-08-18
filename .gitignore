@@ -5,7 +5,9 @@
 *.sqlite-journal
 jwt.key
 /frontend/node_modules/
+/frontend/dist/
 /internal/web/dist/
+/dist/
 /content/
 /data/
 .DS_Store

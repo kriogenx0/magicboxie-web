@@ -11,14 +11,14 @@ export default defineConfig({
   server: {
     // The Jellyfin-compatible surface uses bare paths (no shared "/api"
     // prefix), so each top-level path family is proxied individually;
-    // MagicBox's own extensions stay under /magicbox.
+    // MagicBox's own extensions stay under /api.
     proxy: {
       "/System": "http://localhost:8090",
       "/Users": "http://localhost:8090",
       "/Items": "http://localhost:8090",
       "/Videos": "http://localhost:8090",
       "/Sessions": "http://localhost:8090",
-      "/magicbox": "http://localhost:8090",
+      "/api": "http://localhost:8090",
     },
   },
 });
