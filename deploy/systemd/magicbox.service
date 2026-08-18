@@ -1,3 +1,6 @@
+# Installed by `make pi-install` (see Makefile's pi-* targets). If you
+# override PI_CONTENT_DIR away from the /content default, update
+# ReadWritePaths below to match -- it's not templated.
 [Unit]
 Description=MagicBox personal media server
 After=network.target
