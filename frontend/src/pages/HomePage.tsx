@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMovies } from "../hooks/useMovies";
 import { Hero } from "../components/Hero";
 import { PosterRow } from "../components/PosterRow";
@@ -6,6 +6,7 @@ import type { Movie } from "../api/types";
 
 export function HomePage() {
   const { data: movies, isLoading, error } = useMovies();
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
   const { heroMovies, recentlyAdded, inProgress, byGenre } = useMemo(() => {
     const all = movies ?? [];
@@ -50,12 +51,12 @@ export function HomePage() {
 
   return (
     <div>
-      <Hero movies={heroMovies} />
-      <div className="relative z-10 -mt-2 sm:-mt-6">
-        <PosterRow title="Continue Processing" movies={inProgress} />
-        <PosterRow title="Recently Added" movies={recentlyAdded} />
+      <Hero movies={heroMovies} selectedMovie={selectedMovie} />
+      <div className="relative z-10 -mt-14 sm:-mt-20">
+        <PosterRow title="Continue Processing" movies={inProgress} onSelect={setSelectedMovie} />
+        <PosterRow title="Recently Added" movies={recentlyAdded} onSelect={setSelectedMovie} />
         {byGenre.map(([label, list]) => (
-          <PosterRow key={label} title={label} movies={list} />
+          <PosterRow key={label} title={label} movies={list} onSelect={setSelectedMovie} />
         ))}
       </div>
     </div>

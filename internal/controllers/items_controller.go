@@ -121,13 +121,13 @@ func parseItemID(raw, wantKind string) (id uint, ok bool) {
 
 func movieToItem(m models.Movie) jellyfinItem {
 	item := jellyfinItem{
-		Id:                        formatItemID("movie", m.ID),
-		Name:                      m.Title,
-		Type:                      "Movie",
-		Overview:                  m.Overview,
-		ProductionYear:            m.Year,
-		RunTimeTicks:              int64(m.DurationSeconds * ticksPerSecond),
-		DateCreated:               m.AddedAt.UTC().Format(time.RFC3339),
+		Id:                          formatItemID("movie", m.ID),
+		Name:                        m.Title,
+		Type:                        "Movie",
+		Overview:                    m.Overview,
+		ProductionYear:              m.Year,
+		RunTimeTicks:                int64(m.DurationSeconds * ticksPerSecond),
+		DateCreated:                 m.AddedAt.UTC().Format(time.RFC3339),
 		MagicBoxieStatus:            m.Status,
 		MagicBoxieOriginalFilename:  m.OriginalFilename,
 		MagicBoxieNeedsReview:       m.NeedsReview,
@@ -386,6 +386,73 @@ func (ic *ItemsController) Detail(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, movieToItem(movie))
 	}
+}
+
+type renameMovieRequest struct {
+	Title string `json:"title"`
+}
+
+func (ic *ItemsController) Rename(c *gin.Context) {
+	id, ok := parseItemID(c.Param("itemId"), "movie")
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
+		return
+	}
+	var req renameMovieRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title is required"})
+		return
+	}
+	req.Title = strings.TrimSpace(req.Title)
+	if req.Title == "" || len(req.Title) > 200 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title must be between 1 and 200 characters"})
+		return
+	}
+	var movie models.Movie
+	if err := ic.db.First(&movie, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "movie not found"})
+		return
+	}
+	if err := ic.db.Model(&movie).Update("title", req.Title).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to rename movie"})
+		return
+	}
+	movie.Title = req.Title
+	c.JSON(http.StatusOK, movieToItem(movie))
+}
+
+func (ic *ItemsController) Delete(c *gin.Context) {
+	id, ok := parseItemID(c.Param("itemId"), "movie")
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid movie id"})
+		return
+	}
+	var movie models.Movie
+	if err := ic.db.First(&movie, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "movie not found"})
+		return
+	}
+	mediaPath := filepath.Join(ic.moviesDir, movie.PlayableRelpath)
+	if movie.ContentSHA256 != "" {
+		ic.db.Delete(&models.MediaChecksum{}, "sha256 = ?", movie.ContentSHA256)
+	}
+	if err := ic.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&models.Job{}, "movie_id = ?", movie.ID).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&movie).Error
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete movie"})
+		return
+	}
+	if movie.PlayableRelpath != "" {
+		_ = os.Remove(mediaPath)
+	}
+	_ = os.RemoveAll(filepath.Join(ic.dataDir, "images", "thumbnails", fmt.Sprint(movie.ID)))
+	_ = os.Remove(filepath.Join(ic.dataDir, "images", "posters", fmt.Sprintf("%d.jpg", movie.ID)))
+	_ = os.Remove(filepath.Join(ic.dataDir, "images", "backdrops", fmt.Sprintf("%d.jpg", movie.ID)))
+	_ = os.Remove(filepath.Join(ic.dataDir, "previews", fmt.Sprintf("%d.mp4", movie.ID)))
+	c.Status(http.StatusNoContent)
 }
 
 func (ic *ItemsController) PlaybackInfo(c *gin.Context) {

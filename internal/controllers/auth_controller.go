@@ -23,9 +23,12 @@ func NewAuthController(cfg *config.Config, manager *auth.Manager) *AuthControlle
 // showing a login screen.
 func (a *AuthController) SystemInfoPublic(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"ServerName": "MagicBoxie",
-		"Version":    "1.0.0",
-		"Id":         "magicbox",
+		"ServerName":             "MagicBoxie",
+		"Version":                "10.11.6",
+		"ProductName":            "Jellyfin Server",
+		"OperatingSystem":        "Linux",
+		"StartupWizardCompleted": true,
+		"Id":                     "magicbox",
 	})
 }
 

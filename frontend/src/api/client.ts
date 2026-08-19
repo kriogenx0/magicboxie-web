@@ -69,16 +69,21 @@ export function movieDownloadUrl(movieId: number): string {
   return `${movieStreamUrl(movieId)}&download=1`;
 }
 
+export function moviePreviewUrl(movieId: number): string {
+  return `/Videos/movie-${movieId}/preview?${authQuery()}`;
+}
+
 export function audioStreamUrl(trackId: number): string {
   return `/Audio/track-${trackId}/stream?static=true&${authQuery()}`;
 }
 
 /** Poster/backdrop URLs are unauthenticated per Jellyfin convention (see
  * backend routes.go), so no token is needed here. */
-export function movieImageUrl(movieId: number, kind: "primary" | "backdrop"): string {
-  return kind === "primary"
+export function movieImageUrl(movieId: number, kind: "primary" | "backdrop", tag?: string): string {
+  const path = kind === "primary"
     ? `/Items/movie-${movieId}/Images/Primary`
     : `/Items/movie-${movieId}/Images/Backdrop/0`;
+  return tag ? `${path}?tag=${encodeURIComponent(tag)}` : path;
 }
 
 export function albumImageUrl(albumId: number): string {

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,6 +15,7 @@ import (
 	"magicbox/internal/config"
 	"magicbox/internal/controllers"
 	"magicbox/internal/db"
+	"magicbox/internal/models"
 	"magicbox/internal/routes"
 	"magicbox/internal/services/events"
 	"magicbox/internal/services/library"
@@ -27,6 +29,10 @@ import (
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "hash-password" {
 		runHashPassword()
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "rematch-tmdb" {
+		runRematchTMDB(os.Args[2:])
 		return
 	}
 
@@ -78,7 +84,7 @@ func main() {
 
 	authController := controllers.NewAuthController(cfg, authManager)
 	itemsController := controllers.NewItemsController(gormDB, importer, musicImporter, cfg.MoviesDir, cfg.DataDir)
-	videosController := controllers.NewVideosController(gormDB, cfg.MoviesDir)
+	videosController := controllers.NewVideosController(gormDB, cfg.MoviesDir, cfg.DataDir)
 	audioController := controllers.NewAudioController(gormDB, cfg.MusicDir)
 
 	uploadManager, err := upload.NewManager(gormDB, cfg.MoviesDir)
@@ -108,6 +114,53 @@ func main() {
 	if err := router.Run(cfg.ListenAddr); err != nil {
 		log.Fatalf("magicbox: server error: %v", err)
 	}
+}
+
+func runRematchTMDB(args []string) {
+	flags := flag.NewFlagSet("rematch-tmdb", flag.ExitOnError)
+	configPath := flags.String("config", "/etc/magicbox/config.yaml", "path to config YAML file")
+	_ = flags.Parse(args)
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	database, err := db.Open(cfg.DataDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client := tmdb.NewClient(cfg.TMDB.APIReadToken)
+	importer := library.NewImporter(database, cfg.MoviesDir, cfg.DataDir, client)
+	var movies []models.Movie
+	if err := database.Order("id").Find(&movies).Error; err != nil {
+		log.Fatal(err)
+	}
+	matched, unmatched, failed := 0, 0, 0
+	for i := range movies {
+		movie := &movies[i]
+		results, err := importer.SearchTMDB(context.Background(), movie.Title, movie.Year)
+		if err != nil {
+			log.Printf("FAILED  %q: %v", movie.Title, err)
+			failed++
+			continue
+		}
+		if len(results) == 0 && movie.Year > 0 {
+			results, err = importer.SearchTMDB(context.Background(), movie.Title, 0)
+		}
+		if err != nil || len(results) == 0 {
+			log.Printf("NO MATCH %q", movie.Title)
+			unmatched++
+			continue
+		}
+		sort.Slice(results, func(i, j int) bool { return results[i].Popularity > results[j].Popularity })
+		if err := importer.ApplyManualMatch(context.Background(), movie, results[0].ID); err != nil {
+			log.Printf("FAILED  %q: %v", movie.Title, err)
+			failed++
+			continue
+		}
+		log.Printf("MATCHED %q -> TMDB %d", movie.Title, results[0].ID)
+		matched++
+	}
+	fmt.Printf("TMDB refresh complete: %d matched, %d unmatched, %d failed\n", matched, unmatched, failed)
 }
 
 func runHashPassword() {

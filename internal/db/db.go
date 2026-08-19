@@ -27,6 +27,7 @@ func Open(dataDir string) (*gorm.DB, error) {
 		&models.Movie{},
 		&models.Job{},
 		&models.UploadSession{},
+		&models.MediaChecksum{},
 		&models.Artist{},
 		&models.Album{},
 		&models.Track{},

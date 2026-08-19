@@ -33,7 +33,15 @@ export function UploadDropzone() {
                 <div className="mb-1 flex justify-between text-neutral-300">
                   <span className="truncate">{u.name}</span>
                   <span className="ml-2 shrink-0">
-                    {u.status === "error" ? "Failed" : u.status === "done" ? "Done" : `${pct.toFixed(0)}%`}
+                    {u.status === "error"
+                      ? "Failed"
+                      : u.status === "done"
+                        ? "Done"
+                        : u.status === "queued"
+                          ? "Queued"
+                          : u.status === "hashing"
+                            ? `Hashing ${pct.toFixed(0)}%`
+                          : `${pct.toFixed(0)}%`}
                   </span>
                 </div>
                 <div className="h-1 w-full overflow-hidden rounded-full bg-neutral-700">

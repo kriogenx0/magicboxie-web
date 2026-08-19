@@ -12,6 +12,7 @@ import { MovieDetailPage } from "./pages/MovieDetailPage";
 import { MusicHomePage } from "./pages/MusicHomePage";
 import { ArtistPage } from "./pages/ArtistPage";
 import { AlbumPage } from "./pages/AlbumPage";
+import { AdminMoviesPage } from "./pages/AdminMoviesPage";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,10 @@ function AppRoutes() {
     <>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/admin/movies"
+          element={<ProtectedRoute><Layout><AdminMoviesPage /></Layout></ProtectedRoute>}
+        />
         <Route
           path="/"
           element={

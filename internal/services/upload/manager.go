@@ -6,6 +6,8 @@
 package upload
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"magicbox/internal/models"
 )
@@ -29,6 +32,49 @@ var (
 type Manager struct {
 	db         *gorm.DB
 	stagingDir string // <movies_dir>/.magicbox/uploads-tmp
+}
+
+// Checksum calculates the SHA-256 digest of the fully received staging file.
+func (m *Manager) Checksum(session *models.UploadSession) (string, error) {
+	f, err := os.Open(m.tempPath(session))
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// ClaimChecksum atomically records content ownership. false means an earlier
+// upload already claimed the same bytes, including a concurrent request.
+func (m *Manager) ClaimChecksum(session *models.UploadSession, checksum string) (bool, error) {
+	record := models.MediaChecksum{SHA256: checksum, OriginalFilename: session.OriginalFilename}
+	result := m.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&record)
+	return result.RowsAffected == 1, result.Error
+}
+
+func (m *Manager) HasChecksum(checksum string) (bool, error) {
+	var count int64
+	err := m.db.Model(&models.MediaChecksum{}).Where("sha256 = ?", checksum).Count(&count).Error
+	return count > 0, err
+}
+
+func (m *Manager) SetMovieChecksum(sourceRelpath, checksum string) {
+	if err := m.db.Model(&models.Movie{}).Where("source_relpath = ?", sourceRelpath).Update("content_sha256", checksum).Error; err != nil {
+		fmt.Printf("upload: recording movie checksum failed: %v\n", err)
+	}
+}
+
+// Abort removes an uncompleted staging file and marks its session aborted.
+func (m *Manager) Abort(session *models.UploadSession) error {
+	if err := os.Remove(m.tempPath(session)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return m.db.Model(session).Update("status", models.UploadStatusAborted).Error
 }
 
 func NewManager(db *gorm.DB, moviesDir string) (*Manager, error) {

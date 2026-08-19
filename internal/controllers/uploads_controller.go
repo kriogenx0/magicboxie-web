@@ -2,19 +2,27 @@ package controllers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"magicbox/internal/models"
 	"magicbox/internal/services/library"
 	"magicbox/internal/services/mediatype"
 	"magicbox/internal/services/music"
 	"magicbox/internal/services/upload"
 )
+
+var sha256Pattern = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
 
 type UploadsController struct {
 	manager       *upload.Manager
@@ -22,6 +30,51 @@ type UploadsController struct {
 	musicDir      string
 	importer      *library.Importer
 	musicImporter *music.Importer
+}
+
+// Direct receives an entire file as one streaming request. This is the
+// browser-friendly path; the chunked endpoints remain available for clients
+// that explicitly need resumability.
+func (uc *UploadsController) Direct(c *gin.Context) {
+	filename := filepath.Base(strings.TrimSpace(c.Query("filename")))
+	if filename == "." || filename == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "filename is required"})
+		return
+	}
+	if _, ok := mediatype.Detect(filename); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unrecognized file extension"})
+		return
+	}
+	if c.Request.ContentLength <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Content-Length header is required"})
+		return
+	}
+
+	session, err := uc.manager.Create(filename, c.Request.ContentLength)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create upload session"})
+		return
+	}
+	hasher := sha256.New()
+	if _, err := uc.manager.WriteChunk(session, 0, c.Request.ContentLength, io.TeeReader(c.Request.Body, hasher)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to write upload"})
+		return
+	}
+	uc.completeSession(c, session, hex.EncodeToString(hasher.Sum(nil)))
+}
+
+func (uc *UploadsController) ChecksumStatus(c *gin.Context) {
+	checksum := strings.ToLower(c.Param("sha256"))
+	if !sha256Pattern.MatchString(checksum) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid SHA-256 checksum"})
+		return
+	}
+	exists, err := uc.manager.HasChecksum(checksum)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check upload checksum"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"exists": exists})
 }
 
 func NewUploadsController(manager *upload.Manager, moviesDir, musicDir string, importer *library.Importer, musicImporter *music.Importer) *UploadsController {
@@ -111,9 +164,34 @@ func (uc *UploadsController) Complete(c *gin.Context) {
 		return
 	}
 
+	uc.completeSession(c, session, "")
+}
+
+func (uc *UploadsController) completeSession(c *gin.Context, session *models.UploadSession, checksum string) {
 	kind, ok := mediatype.Detect(session.OriginalFilename)
 	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unrecognized file extension"})
+		return
+	}
+
+	if checksum == "" {
+		var err error
+		checksum, err = uc.manager.Checksum(session)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to checksum upload"})
+			return
+		}
+	}
+	claimed, err := uc.manager.ClaimChecksum(session, checksum)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to record upload checksum"})
+		return
+	}
+	if !claimed {
+		if err := uc.manager.Abort(session); err != nil {
+			log.Printf("duplicate upload: cleaning staging file failed: %v", err)
+		}
+		c.JSON(http.StatusConflict, gin.H{"error": "this file has already been uploaded", "checksum": checksum})
 		return
 	}
 
@@ -134,7 +212,7 @@ func (uc *UploadsController) Complete(c *gin.Context) {
 
 	switch kind {
 	case mediatype.KindMovie:
-		go func() {
+		go func(checksum string) {
 			relpath, err := filepath.Rel(uc.moviesDir, destPath)
 			if err != nil {
 				log.Printf("upload complete: computing relpath failed: %v", err)
@@ -142,8 +220,10 @@ func (uc *UploadsController) Complete(c *gin.Context) {
 			}
 			if _, err := uc.importer.ImportNewFile(context.Background(), relpath, destPath); err != nil {
 				log.Printf("upload complete: import failed for %q: %v", relpath, err)
+				return
 			}
-		}()
+			uc.manager.SetMovieChecksum(relpath, checksum)
+		}(checksum)
 	case mediatype.KindMusic:
 		go func() {
 			relpath, err := filepath.Rel(uc.musicDir, destPath)

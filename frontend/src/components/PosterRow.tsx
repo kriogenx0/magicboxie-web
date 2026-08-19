@@ -2,7 +2,7 @@ import { useRef } from "react";
 import type { Movie } from "../api/types";
 import { PosterCard } from "./PosterCard";
 
-export function PosterRow({ title, movies }: { title: string; movies: Movie[] }) {
+export function PosterRow({ title, movies, onSelect }: { title: string; movies: Movie[]; onSelect?: (movie: Movie) => void }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   if (movies.length === 0) return null;
@@ -14,8 +14,8 @@ export function PosterRow({ title, movies }: { title: string; movies: Movie[] })
   };
 
   return (
-    <section className="group/row relative mb-8 sm:mb-10">
-      <h2 className="mb-2 px-4 text-lg font-bold tracking-tight text-neutral-100 sm:px-10 sm:text-xl">{title}</h2>
+    <section className="group/row relative mb-9 sm:mb-12">
+      <h2 className="mb-3 px-4 text-lg font-bold tracking-tight text-white sm:px-10 sm:text-xl">{title}</h2>
 
       <button
         type="button"
@@ -29,7 +29,7 @@ export function PosterRow({ title, movies }: { title: string; movies: Movie[] })
       <div ref={scrollerRef} className="scroll-row flex gap-2 overflow-x-auto px-4 pb-1 sm:gap-2.5 sm:px-10">
         {movies.map((movie) => (
           <div key={movie.id} className="w-28 shrink-0 sm:w-36 md:w-40 lg:w-44 xl:w-48">
-            <PosterCard movie={movie} />
+            <PosterCard movie={movie} onSelect={onSelect} />
           </div>
         ))}
       </div>

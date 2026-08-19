@@ -36,6 +36,27 @@ export function useMovie(id: number) {
   });
 }
 
+export function useRenameMovie(movieId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (title: string) =>
+      apiFetch<JellyfinItem>(`/api/items/movie-${movieId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["movies"] }),
+  });
+}
+
+export function useDeleteMovie() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (movieId: number) =>
+      apiFetch<void>(`/api/items/movie-${movieId}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["movies"] }),
+  });
+}
+
 // Looks up TMDB candidates by title (+ optional year) so the user can
 // manually correct a movie whose automatic match was missing or wrong.
 // Not a useQuery -- this only runs when the user explicitly searches, not on

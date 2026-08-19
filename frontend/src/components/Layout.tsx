@@ -1,5 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
-import { useDropzone } from "react-dropzone";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useUploadQueue } from "../hooks/useUploadQueue";
@@ -10,25 +9,50 @@ export function Layout({ children }: { children: ReactNode }) {
   const { logout } = useAuth();
   const location = useLocation();
   const onMusic = location.pathname.startsWith("/music");
+  const onAdmin = location.pathname.startsWith("/admin");
   const hasHero = location.pathname === "/" || location.pathname.startsWith("/movies/");
   const { addFiles } = useUploadQueue();
 
-  // The whole page is a drop target on every authenticated route, not just
-  // the upload panel's own box -- open the panel on drop so progress is
-  // visible even if the user dropped somewhere else entirely.
-  const onDrop = useCallback(
-    (files: File[]) => {
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  // Listen on window so a file dropped over a child control, image, or media
+  // element cannot bypass the upload target. Calling preventDefault during
+  // dragover is also required for browsers to emit the final drop event.
+  useEffect(() => {
+    const containsFiles = (event: DragEvent) =>
+      Array.from(event.dataTransfer?.types ?? []).includes("Files");
+
+    const handleDragOver = (event: DragEvent) => {
+      if (!containsFiles(event)) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      setIsDragActive(true);
+    };
+    const handleDragLeave = (event: DragEvent) => {
+      if (!event.relatedTarget) setIsDragActive(false);
+    };
+    const handleDrop = (event: DragEvent) => {
+      if (!containsFiles(event)) return;
+      event.preventDefault();
+      setIsDragActive(false);
+      const files = Array.from(event.dataTransfer?.files ?? []);
       if (files.length === 0) return;
       addFiles(files);
       setShowUpload(true);
-    },
-    [addFiles],
-  );
+    };
 
-  const { getRootProps, isDragActive } = useDropzone({ onDrop, noClick: true, noKeyboard: true });
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("drop", handleDrop);
+    return () => {
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, [addFiles]);
 
   return (
-    <div {...getRootProps()} className="app-surface min-h-screen pb-24">
+    <div className="app-surface min-h-screen pb-24">
       {isDragActive && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center border-4 border-dashed border-red-600 bg-black/80">
           <p className="text-2xl font-semibold text-white">Drop to upload</p>
@@ -38,13 +62,13 @@ export function Layout({ children }: { children: ReactNode }) {
         className={`${hasHero ? "absolute" : "sticky"} top-0 z-20 flex h-16 w-full items-center justify-between bg-gradient-to-b from-black via-black/85 to-transparent px-4 sm:h-[68px] sm:px-10`}
       >
         <div className="flex items-center gap-7">
-          <Link to="/" className="inline-flex h-10 w-10 items-center justify-center rounded-sm bg-[#e50914] text-sm font-black tracking-[0.16em] text-white shadow-sm sm:h-11 sm:w-11 sm:text-base" aria-label="MagicBoxie">
-            MB
+          <Link to="/" className="netflix-logo text-xl font-black uppercase text-[#e50914] sm:text-2xl" aria-label="MagicBoxie">
+            MagicBoxie
           </Link>
           <nav className="flex items-center gap-5 text-sm font-medium">
             <Link
               to="/"
-              className={!onMusic ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}
+              className={!onMusic && !onAdmin ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}
             >
               Movies
             </Link>
@@ -53,6 +77,9 @@ export function Layout({ children }: { children: ReactNode }) {
               className={onMusic ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}
             >
               Music
+            </Link>
+            <Link to="/admin/movies" className={onAdmin ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}>
+              Admin
             </Link>
           </nav>
         </div>

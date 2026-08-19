@@ -69,6 +69,7 @@ func Register(router *gin.Engine, deps Dependencies) {
 
 		authorized.GET("/Videos/:itemId/stream", deps.VideosController.Stream)
 		authorized.HEAD("/Videos/:itemId/stream", deps.VideosController.Stream)
+		authorized.GET("/Videos/:itemId/preview", deps.VideosController.Preview)
 
 		authorized.GET("/Audio/:itemId/stream", deps.AudioController.Stream)
 		authorized.HEAD("/Audio/:itemId/stream", deps.AudioController.Stream)
@@ -81,12 +82,16 @@ func Register(router *gin.Engine, deps Dependencies) {
 			api.POST("/library/scan", deps.ItemsController.Scan)
 			api.POST("/library/music/scan", deps.ItemsController.MusicScan)
 			api.POST("/items/:itemId/match", deps.ItemsController.Match)
+			api.PATCH("/items/:itemId", deps.ItemsController.Rename)
+			api.DELETE("/items/:itemId", deps.ItemsController.Delete)
 			api.GET("/items/:itemId/thumbnails", deps.ItemsController.ThumbnailCandidates)
 			api.POST("/items/:itemId/thumbnails/select", deps.ItemsController.SelectThumbnail)
 			api.POST("/items/:itemId/sync", deps.ItemsController.SetDeviceSync)
 			api.GET("/items/search", deps.ItemsController.Search)
 
 			api.POST("/uploads", deps.UploadsController.Create)
+			api.GET("/uploads/checksum/:sha256", deps.UploadsController.ChecksumStatus)
+			api.POST("/uploads/direct", deps.UploadsController.Direct)
 			api.GET("/uploads/:id", deps.UploadsController.Status)
 			api.PUT("/uploads/:id/chunk", deps.UploadsController.Chunk)
 			api.POST("/uploads/:id/complete", deps.UploadsController.Complete)

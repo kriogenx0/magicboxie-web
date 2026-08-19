@@ -75,6 +75,8 @@ export interface Movie {
   runtimeSeconds: number;
   hasPoster: boolean;
   hasBackdrop: boolean;
+  posterTag: string;
+  backdropTag: string;
   status: MovieStatus;
   needsReview: boolean;
   posterIsGenerated: boolean;
@@ -107,6 +109,8 @@ export function mapItemToMovie(item: JellyfinItem): Movie {
     runtimeSeconds: (item.RunTimeTicks ?? 0) / TICKS_PER_SECOND,
     hasPoster: Boolean(item.ImageTags?.Primary),
     hasBackdrop: Boolean(item.BackdropImageTags && item.BackdropImageTags.length > 0),
+    posterTag: item.ImageTags?.Primary ?? "",
+    backdropTag: item.BackdropImageTags?.[0] ?? "",
     status: item.MagicBoxieStatus || "ready",
     needsReview: Boolean(item.MagicBoxieNeedsReview),
     posterIsGenerated: Boolean(item.MagicBoxiePosterIsGenerated),

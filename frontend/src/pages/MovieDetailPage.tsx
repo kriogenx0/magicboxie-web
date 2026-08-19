@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getThumbnailCandidates, useMovie, useSelectThumbnail, useSetDeviceSync } from "../hooks/useMovies";
+import { getThumbnailCandidates, useMovie, useRenameMovie, useSelectThumbnail, useSetDeviceSync } from "../hooks/useMovies";
 import { movieImageUrl, movieStreamUrl, movieDownloadUrl } from "../api/client";
 import type { ThumbnailCandidate } from "../api/types";
 import { useTranscodeProgress } from "../hooks/useTranscodeProgress";
@@ -23,11 +23,27 @@ export function MovieDetailPage() {
   const [generatedBackdropUrl, setGeneratedBackdropUrl] = useState<string | null>(null);
   const [thumbnailCandidates, setThumbnailCandidates] = useState<ThumbnailCandidate[]>([]);
   const [thumbnailError, setThumbnailError] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
   const progress = useTranscodeProgress(movieId);
   const selectThumbnail = useSelectThumbnail(movieId);
   const setDeviceSync = useSetDeviceSync(movieId);
+  const renameMovie = useRenameMovie(movieId);
+
+  useEffect(() => {
+    if (movie && !isRenaming) setTitleDraft(movie.title);
+  }, [movie?.title, isRenaming]);
+
+  useEffect(() => {
+    if (!showPlayer) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [showPlayer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,12 +92,23 @@ export function MovieDetailPage() {
     });
   };
 
+  const saveTitle = async () => {
+    const title = titleDraft.trim();
+    if (!title || title === movie.title) {
+      setTitleDraft(movie.title);
+      setIsRenaming(false);
+      return;
+    }
+    await renameMovie.mutateAsync(title);
+    setIsRenaming(false);
+  };
+
   return (
     <div>
       <div className="relative h-[55vh] min-h-[350px] w-full overflow-hidden sm:h-[65vh]">
         {movie.hasBackdrop ? (
           <img
-            src={movieImageUrl(movie.id, "backdrop")}
+            src={movieImageUrl(movie.id, "backdrop", movie.backdropTag)}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -110,7 +137,7 @@ export function MovieDetailPage() {
             <div className="aspect-[2/3] w-full">
               {movie.hasPoster ? (
                 <img
-                  src={`${movieImageUrl(movie.id, "primary")}?v=${posterVersion}`}
+                  src={`${movieImageUrl(movie.id, "primary", movie.posterTag)}${movie.posterTag ? "&" : "?"}v=${posterVersion}`}
                   alt={movie.title}
                   className="h-full w-full object-cover"
                 />
@@ -123,7 +150,55 @@ export function MovieDetailPage() {
           </div>
 
           <div className="flex-1">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">{movie.title}</h1>
+            <div className="group/title flex max-w-3xl items-center gap-3">
+              {isRenaming ? (
+                <form
+                  className="flex w-full items-center gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void saveTitle();
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={titleDraft}
+                    maxLength={200}
+                    onChange={(event) => setTitleDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        setTitleDraft(movie.title);
+                        setIsRenaming(false);
+                      }
+                    }}
+                    className="min-w-0 flex-1 border-b-2 border-[#e50914] bg-black/55 px-2 py-1 text-3xl font-extrabold tracking-tight text-white outline-none backdrop-blur sm:text-5xl"
+                    aria-label="Movie title"
+                  />
+                  <button disabled={renameMovie.isPending} className="rounded bg-white px-4 py-2 text-sm font-bold text-black disabled:opacity-50">
+                    Save
+                  </button>
+                  <button type="button" onClick={() => setIsRenaming(false)} className="rounded bg-white/15 px-4 py-2 text-sm font-bold text-white">
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">{movie.title}</h1>
+                  <button
+                    onClick={() => setIsRenaming(true)}
+                    className="rounded-full bg-black/40 p-2 text-neutral-300 opacity-100 backdrop-blur transition hover:bg-white hover:text-black sm:opacity-0 sm:group-hover/title:opacity-100"
+                    aria-label="Rename movie"
+                    title="Rename movie"
+                  >
+                    ✎
+                  </button>
+                </>
+              )}
+            </div>
+            {renameMovie.isError && (
+              <p className="mt-2 text-sm text-red-400">
+                {renameMovie.error instanceof Error ? renameMovie.error.message : "Could not rename movie."}
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-neutral-300">
               {movie.year > 0 && <span>{movie.year}</span>}
               {movie.runtimeSeconds > 0 && <span>{formatRuntime(movie.runtimeSeconds)}</span>}
@@ -246,9 +321,9 @@ export function MovieDetailPage() {
       </div>
 
       {showPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black p-4 sm:p-8">
-          <div className="absolute inset-x-4 top-4 z-10 flex items-center justify-between sm:inset-x-8 sm:top-6">
-            <p className="max-w-[65%] truncate text-sm font-medium text-white">{movie.title}</p>
+        <div className="fixed inset-0 z-50 flex h-[100dvh] w-screen items-center justify-center overflow-hidden bg-black">
+          <div className="absolute inset-x-0 top-0 z-10 flex h-16 items-center justify-between border-b border-white/10 bg-black/85 px-4 shadow-xl backdrop-blur-md sm:h-[72px] sm:px-6">
+            <p className="max-w-[55%] truncate text-sm font-semibold text-white sm:max-w-[70%] sm:text-base">{movie.title}</p>
             <div className="flex items-center gap-2">
               <button
                 onClick={enterFullscreen}
@@ -258,9 +333,9 @@ export function MovieDetailPage() {
               </button>
               <button
                 onClick={() => setShowPlayer(false)}
-                className="rounded-sm bg-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/20"
+                className="rounded bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-neutral-200 sm:px-5"
               >
-                ✕ Close
+                <span aria-hidden="true">✕</span> Close
               </button>
             </div>
           </div>
@@ -271,7 +346,7 @@ export function MovieDetailPage() {
             src={movieStreamUrl(movie.id)}
             controls
             autoPlay
-            className="max-h-full max-w-full rounded-sm shadow-2xl"
+            className="h-[100dvh] w-screen object-contain"
           />
         </div>
       )}

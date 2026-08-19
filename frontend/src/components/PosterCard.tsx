@@ -44,16 +44,18 @@ function StatusBadge({ movie }: { movie: Movie }) {
   return null;
 }
 
-export function PosterCard({ movie }: { movie: Movie }) {
+export function PosterCard({ movie, onSelect }: { movie: Movie; onSelect?: (movie: Movie) => void }) {
   return (
     <Link
       to={`/movies/${movie.id}`}
-      className="group relative block w-full overflow-hidden rounded-sm bg-neutral-900 shadow-lg transition duration-300 ease-out hover:z-10 hover:scale-105 hover:shadow-2xl focus:z-10 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-white"
+      onMouseEnter={() => onSelect?.(movie)}
+      onFocus={() => onSelect?.(movie)}
+      className="group relative block w-full overflow-hidden rounded bg-neutral-900 shadow-lg ring-1 ring-white/5 transition duration-300 ease-out hover:z-10 hover:scale-110 hover:shadow-[0_18px_50px_rgba(0,0,0,.75)] hover:ring-white/20 focus:z-10 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-white"
     >
       <div className="aspect-[2/3] w-full bg-neutral-800">
         {movie.hasPoster ? (
           <img
-            src={movieImageUrl(movie.id, "primary")}
+            src={movieImageUrl(movie.id, "primary", movie.posterTag)}
             alt={movie.title}
             loading="lazy"
             className="h-full w-full object-cover"
@@ -64,8 +66,12 @@ export function PosterCard({ movie }: { movie: Movie }) {
           </div>
         )}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-full bg-gradient-to-t from-black via-black/90 to-transparent px-2 pb-2 pt-8 text-xs font-semibold text-white opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-        <p className="truncate">{movie.title}</p>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-3 bg-gradient-to-t from-black via-black/90 to-transparent px-3 pb-3 pt-12 text-xs text-white opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+        <p className="truncate font-bold">{movie.title}</p>
+        <p className="mt-1 flex gap-2 text-[11px] text-neutral-300">
+          {movie.year > 0 && <span>{movie.year}</span>}
+          {movie.genres[0] && <span>{movie.genres[0]}</span>}
+        </p>
       </div>
       <StatusBadge movie={movie} />
     </Link>

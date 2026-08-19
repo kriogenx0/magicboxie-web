@@ -25,6 +25,7 @@ type Movie struct {
 	PosterIsGenerated bool      `json:"poster_is_generated"`
 	BackdropPath      string    `json:"backdrop_path"`
 	OriginalFilename  string    `gorm:"not null" json:"original_filename"`
+	ContentSHA256     string    `gorm:"size:64;index" json:"-"`
 	SourceRelpath     string    `gorm:"not null;uniqueIndex" json:"-"` // relpath under movies_dir at time of discovery; kept for scan dedup even after the original file is deleted post-transcode
 	PlayableRelpath   string    `json:"-"`
 	FileSizeBytes     int64     `json:"file_size_bytes"`
