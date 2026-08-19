@@ -38,7 +38,7 @@ export function Layout({ children }: { children: ReactNode }) {
         className={`${hasHero ? "absolute" : "sticky"} top-0 z-20 flex h-16 w-full items-center justify-between bg-gradient-to-b from-black via-black/85 to-transparent px-4 sm:h-[68px] sm:px-10`}
       >
         <div className="flex items-center gap-7">
-          <Link to="/" className="inline-flex h-10 w-10 items-center justify-center rounded-sm bg-[#e50914] text-sm font-black tracking-[0.16em] text-white shadow-sm sm:h-11 sm:w-11 sm:text-base" aria-label="MagicBox">
+          <Link to="/" className="inline-flex h-10 w-10 items-center justify-center rounded-sm bg-[#e50914] text-sm font-black tracking-[0.16em] text-white shadow-sm sm:h-11 sm:w-11 sm:text-base" aria-label="MagicBoxie">
             MB
           </Link>
           <nav className="flex items-center gap-5 text-sm font-medium">

@@ -10,7 +10,7 @@ import {
   type Track,
 } from "../api/types";
 
-const USER_ID = "1"; // MagicBox has one shared login, not per-user accounts
+const USER_ID = "1"; // MagicBoxie has one shared login, not per-user accounts
 
 export function useArtists() {
   return useQuery({

@@ -1,5 +1,5 @@
 // Package tmdb is a minimal client for the three TMDB v3 API endpoints
-// MagicBox needs: search, movie details (with credits), and image download.
+// MagicBoxie needs: search, movie details (with credits), and image download.
 package tmdb
 
 import (

@@ -590,7 +590,7 @@ type matchRequest struct {
 	TMDBID int `json:"tmdb_id" binding:"required"`
 }
 
-// Match is a MagicBox-specific extension (no Jellyfin equivalent) letting
+// Match is a MagicBoxie-specific extension (no Jellyfin equivalent) letting
 // the user manually correct an ambiguous or missing TMDB match.
 func (ic *ItemsController) Match(c *gin.Context) {
 	movie, ok := ic.loadMovie(c)
@@ -620,7 +620,7 @@ type tmdbSearchResult struct {
 	PosterURL string `json:"poster_url,omitempty"`
 }
 
-// Search is a MagicBox-specific extension letting the user look up TMDB
+// Search is a MagicBoxie-specific extension letting the user look up TMDB
 // candidates by title, to manually correct a movie whose automatic match was
 // missing or wrong (see Match, which applies the chosen candidate).
 func (ic *ItemsController) Search(c *gin.Context) {
@@ -662,7 +662,7 @@ func (ic *ItemsController) Search(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"results": out})
 }
 
-// Scan is a MagicBox-specific extension that kicks off a movie library scan
+// Scan is a MagicBoxie-specific extension that kicks off a movie library scan
 // in the background and returns immediately.
 func (ic *ItemsController) Scan(c *gin.Context) {
 	go func() {
@@ -676,7 +676,7 @@ func (ic *ItemsController) Scan(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"status": "scanning"})
 }
 
-// MusicScan is a MagicBox-specific extension that kicks off a music
+// MusicScan is a MagicBoxie-specific extension that kicks off a music
 // library scan in the background and returns immediately.
 func (ic *ItemsController) MusicScan(c *gin.Context) {
 	go func() {

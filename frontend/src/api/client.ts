@@ -18,7 +18,7 @@ export class ApiError extends Error {
 }
 
 // apiFetch hits bare Jellyfin-style paths (e.g. "/Users/1/Items") or
-// MagicBox extension paths (e.g. "/api/library/scan") directly -- there
+// MagicBoxie extension paths (e.g. "/api/library/scan") directly -- there
 // is no shared "/api/v1" prefix in the Jellyfin-compatible contract.
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();

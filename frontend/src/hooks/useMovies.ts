@@ -9,7 +9,7 @@ import {
   type ThumbnailCandidate,
 } from "../api/types";
 
-// "1" is the fixed single-user id -- MagicBox has one shared login, not
+// "1" is the fixed single-user id -- MagicBoxie has one shared login, not
 // per-user accounts, so this is never actually looked up server-side.
 const USER_ID = "1";
 

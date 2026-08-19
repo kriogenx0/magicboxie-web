@@ -170,7 +170,7 @@ export function mapItemToTrack(item: JellyfinItem): Track {
   };
 }
 
-// ---- Manual TMDB re-match (MagicBox-specific, not part of Jellyfin) ----
+// ---- Manual TMDB re-match (MagicBoxie-specific, not part of Jellyfin) ----
 
 export interface TMDBSearchResult {
   tmdb_id: number;
@@ -186,7 +186,7 @@ export interface ThumbnailCandidate {
   selected: boolean;
 }
 
-// ---- SSE job-progress events (MagicBox-specific, not part of Jellyfin) ----
+// ---- SSE job-progress events (MagicBoxie-specific, not part of Jellyfin) ----
 
 export interface JobProgressEvent {
   type: "job_progress";

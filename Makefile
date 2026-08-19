@@ -18,11 +18,11 @@ PI_GO := $(shell command -v go 2>/dev/null || echo /usr/local/go/bin/go)
 # Where movies_dir/music_dir live on the Pi's own filesystem (e.g. an
 # external drive) -- override with `make pi-setup PI_CONTENT_DIR=/mnt/media`.
 PI_CONTENT_DIR ?= /content
-# mDNS name this Pi answers to (http://$(PI_HOSTNAME).local:8080) -- lets a
+# mDNS name this Pi answers to (http://$(PI_HOSTNAME).local) -- lets a
 # magicboxie-device Pi find this server without a fixed/static IP.
 PI_HOSTNAME ?= magicboxie
 
-.PHONY: default build build-local build-web build-go run run-local dev restart deploy open test tidy pi-setup pi-install pi-run pi-logs
+.PHONY: default build build-local build-web build-go run run-local dev restart deploy open test tidy setup pi-setup pi-install pi-run pi-logs
 
 # Keep the no-argument workflow aligned with `make dev`.
 default: dev
@@ -103,13 +103,18 @@ restart: build-local
 	@mkdir -p content/movies content/music data
 	@pkill -f './bin/magicbox' || true
 	@MAGICBOX_CONFIG=configs/magicbox.local.yaml ./bin/$(BINARY) > /tmp/magicbox.log 2>&1 & \
-	 echo "Restarted MagicBox (PID $$!)"
+	 echo "Restarted MagicBoxie (PID $$!)"
 
 # Deploy the published container image and refresh this app's production
 # compose/nginx/TLS configuration. Server bootstrap remains a one-time task
 # handled by deploy/server_setup.sh.
 deploy:
 	./deploy/deploy.sh
+
+# Complete Raspberry Pi setup, including hostname, nginx on port 80, build,
+# and systemd services. Run on the Pi itself.
+setup:
+	./setup.sh
 
 # One-time, run on the Pi itself: installs Go (official tarball -- apt's
 # package is far behind go.mod's requirement) + Node (via NodeSource --
@@ -122,11 +127,15 @@ pi-setup:
 	sudo apt-get install -y curl ffmpeg avahi-daemon
 	@if [ "$$(hostname)" != "$(PI_HOSTNAME)" ]; then \
 		echo "Setting hostname to $(PI_HOSTNAME) (was $$(hostname))" ; \
+		if grep -q '^127\.0\.1\.1' /etc/hosts; then \
+			sudo sed -i "s/127\\.0\\.1\\.1.*/127.0.1.1\t$(PI_HOSTNAME)/" /etc/hosts ; \
+		else \
+			echo "127.0.1.1\t$(PI_HOSTNAME)" | sudo tee -a /etc/hosts >/dev/null ; \
+		fi ; \
 		sudo hostnamectl set-hostname "$(PI_HOSTNAME)" ; \
-		sudo sed -i "s/127\\.0\\.1\\.1.*/127.0.1.1\t$(PI_HOSTNAME)/" /etc/hosts ; \
 	fi
 	sudo systemctl enable --now avahi-daemon
-	@echo "Reachable at http://$(PI_HOSTNAME).local:8080 once the service is running (see pi-run)."
+	@echo "Reachable at http://$(PI_HOSTNAME).local once setup.sh has installed nginx."
 	@if ! $(PI_GO) version 2>/dev/null | grep -q "go$(PI_GO_VERSION)"; then \
 		echo "Installing Go $(PI_GO_VERSION) ($(PI_ARCH))" ; \
 		curl -fsSL "https://go.dev/dl/go$(PI_GO_VERSION).linux-$(PI_ARCH).tar.gz" -o /tmp/go.tar.gz ; \

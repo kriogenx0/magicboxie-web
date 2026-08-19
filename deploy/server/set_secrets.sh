@@ -27,7 +27,7 @@ test -f "$CONFIG" || {
   exit 1
 }
 
-read -r -s -p "New MagicBox login password: " PASSWORD
+read -r -s -p "New MagicBoxie login password: " PASSWORD
 echo
 read -r -s -p "Confirm password: " PASSWORD_CONFIRM
 echo

@@ -33,7 +33,7 @@ export function Hero({ movies }: { movies: Movie[] }) {
       <div className="absolute inset-0 bg-gradient-to-r from-black via-black/45 to-transparent" />
 
       <div className="absolute bottom-2 left-0 max-w-2xl px-4 sm:bottom-4 sm:px-10 lg:px-14">
-        <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-neutral-200/90">MagicBox presents</p>
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-neutral-200/90">MagicBoxie presents</p>
         <h1 className="mb-4 text-4xl font-extrabold tracking-tight drop-shadow-lg sm:text-6xl lg:text-7xl">{movie.title}</h1>
         {movie.overview && (
           <p className="mb-6 line-clamp-3 max-w-xl text-sm leading-relaxed text-neutral-100 drop-shadow sm:text-base lg:text-lg">

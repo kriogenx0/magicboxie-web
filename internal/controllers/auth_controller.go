@@ -23,10 +23,60 @@ func NewAuthController(cfg *config.Config, manager *auth.Manager) *AuthControlle
 // showing a login screen.
 func (a *AuthController) SystemInfoPublic(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"ServerName": "MagicBox",
+		"ServerName": "MagicBoxie",
 		"Version":    "1.0.0",
 		"Id":         "magicbox",
 	})
+}
+
+// PublicUsers returns the single shared account in Jellyfin's UserDto shape.
+// Clients use this endpoint to populate the login screen.
+func (a *AuthController) PublicUsers(c *gin.Context) {
+	c.JSON(http.StatusOK, []gin.H{jellyfinUser("admin")})
+}
+
+// CurrentUser returns the authenticated shared account. A complete-enough
+// UserDto is important here: generated Jellyfin clients decode several of
+// these fields as non-optional values.
+func (a *AuthController) CurrentUser(c *gin.Context) {
+	c.JSON(http.StatusOK, jellyfinUser("admin"))
+}
+
+func jellyfinUser(name string) gin.H {
+	return gin.H{
+		"Name":                      name,
+		"ServerId":                  "magicbox",
+		"Id":                        "1",
+		"HasPassword":               true,
+		"HasConfiguredPassword":     true,
+		"HasConfiguredEasyPassword": false,
+		"EnableAutoLogin":           false,
+		"Configuration": gin.H{
+			"PlayDefaultAudioTrack":      true,
+			"SubtitleMode":               "Default",
+			"DisplayMissingEpisodes":     false,
+			"GroupedFolders":             []string{},
+			"OrderedViews":               []string{},
+			"LatestItemsExcludes":        []string{},
+			"MyMediaExcludes":            []string{},
+			"HidePlayedInLatest":         true,
+			"RememberAudioSelections":    true,
+			"RememberSubtitleSelections": true,
+		},
+		"Policy": gin.H{
+			"IsAdministrator":                true,
+			"IsHidden":                       false,
+			"IsDisabled":                     false,
+			"EnableAllFolders":               true,
+			"EnableAllDevices":               true,
+			"EnableContentDeletion":          true,
+			"EnableContentDownloading":       true,
+			"EnableMediaPlayback":            true,
+			"EnableAudioPlaybackTranscoding": true,
+			"EnableVideoPlaybackTranscoding": true,
+			"EnablePlaybackRemuxing":         true,
+		},
+	}
 }
 
 type authenticateByNameRequest struct {
@@ -35,7 +85,7 @@ type authenticateByNameRequest struct {
 }
 
 // AuthenticateByName is Jellyfin's login endpoint. Username is accepted and
-// echoed back but never validated -- MagicBox has one shared password, not
+// echoed back but never validated -- MagicBoxie has one shared password, not
 // per-user accounts.
 func (a *AuthController) AuthenticateByName(c *gin.Context) {
 	var req authenticateByNameRequest
@@ -63,9 +113,6 @@ func (a *AuthController) AuthenticateByName(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"AccessToken": token,
 		"ServerId":    "magicbox",
-		"User": gin.H{
-			"Id":   "1",
-			"Name": username,
-		},
+		"User":        jellyfinUser(username),
 	})
 }

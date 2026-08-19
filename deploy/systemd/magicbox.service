@@ -2,7 +2,7 @@
 # override PI_CONTENT_DIR away from the /content default, update
 # ReadWritePaths below to match -- it's not templated.
 [Unit]
-Description=MagicBox personal media server
+Description=MagicBoxie personal media server
 After=network.target
 
 [Service]

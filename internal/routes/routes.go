@@ -25,13 +25,18 @@ type Dependencies struct {
 //     /Videos, /Sessions) matching real Jellyfin's conventions exactly, so
 //     magicbox-appletv (already a partial Jellyfin client) and any generic
 //     Jellyfin client work against this server unmodified.
-//  2. MagicBox-specific extensions with no Jellyfin equivalent (chunked
+//  2. MagicBoxie-specific extensions with no Jellyfin equivalent (chunked
 //     upload, library scan trigger, SSE job-progress, manual TMDB
 //     re-match), namespaced under /api/* so they're clearly separate
 //     from the standard surface.
 func Register(router *gin.Engine, deps Dependencies) {
 	router.GET("/System/Info/Public", deps.AuthController.SystemInfoPublic)
+	router.GET("/Users/Public", deps.AuthController.PublicUsers)
+	router.GET("/QuickConnect/Enabled", func(c *gin.Context) { c.JSON(200, false) })
+	router.GET("/Branding/Configuration", func(c *gin.Context) { c.JSON(200, gin.H{}) })
+	router.GET("/Branding/Splashscreen", func(c *gin.Context) { c.Status(404) })
 	router.POST("/Users/AuthenticateByName", deps.AuthController.AuthenticateByName)
+	router.GET("/socket", func(c *gin.Context) { c.Status(404) })
 
 	// Unauthenticated check-in for magicboxie-device Pis (see
 	// player_app/views/home_sync_service.py in that repo) -- a lower-friction
@@ -50,6 +55,11 @@ func Register(router *gin.Engine, deps Dependencies) {
 	authorized := router.Group("")
 	authorized.Use(middleware.RequireAuth(deps.AuthManager))
 	{
+		authorized.GET("/Users/Me", deps.AuthController.CurrentUser)
+		authorized.GET("/UserViews", deps.ItemsController.Views)
+		authorized.GET("/UserImage", func(c *gin.Context) { c.Status(404) })
+		authorized.POST("/Sessions/Capabilities", func(c *gin.Context) { c.Status(204) })
+		authorized.POST("/Sessions/Capabilities/Full", func(c *gin.Context) { c.Status(204) })
 		authorized.GET("/Users/:userId/Views", deps.ItemsController.Views)
 		authorized.GET("/Users/:userId/Items", deps.ItemsController.List)
 		authorized.GET("/Users/:userId/Items/Latest", deps.ItemsController.Latest)
