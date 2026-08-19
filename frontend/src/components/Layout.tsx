@@ -81,6 +81,11 @@ export function Layout({ children }: { children: ReactNode }) {
             <Link to="/admin/movies" className={onAdmin ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}>
               Admin
             </Link>
+            {onAdmin && (
+              <Link to="/admin/activity" className={location.pathname === "/admin/activity" ? "text-white" : "text-neutral-400 transition hover:text-neutral-200"}>
+                Activity
+              </Link>
+            )}
           </nav>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">

@@ -13,6 +13,7 @@ import { MusicHomePage } from "./pages/MusicHomePage";
 import { ArtistPage } from "./pages/ArtistPage";
 import { AlbumPage } from "./pages/AlbumPage";
 import { AdminMoviesPage } from "./pages/AdminMoviesPage";
+import { AdminActivityPage } from "./pages/AdminActivityPage";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,10 @@ function AppRoutes() {
         <Route
           path="/admin/movies"
           element={<ProtectedRoute><Layout><AdminMoviesPage /></Layout></ProtectedRoute>}
+        />
+        <Route
+          path="/admin/activity"
+          element={<ProtectedRoute><Layout><AdminActivityPage /></Layout></ProtectedRoute>}
         />
         <Route
           path="/"

@@ -7,6 +7,7 @@ import {
   type Movie,
   type TMDBSearchResult,
   type ThumbnailCandidate,
+  type BackgroundJob,
 } from "../api/types";
 
 // "1" is the fixed single-user id -- MagicBoxie has one shared login, not
@@ -22,6 +23,14 @@ export function useMovies() {
       );
       return res.Items.map(mapItemToMovie);
     },
+  });
+}
+
+export function useBackgroundJobs() {
+  return useQuery({
+    queryKey: ["backgroundJobs"],
+    queryFn: async () => (await apiFetch<{ jobs: BackgroundJob[] }>("/api/jobs")).jobs,
+    refetchInterval: 3000,
   });
 }
 

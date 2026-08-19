@@ -184,6 +184,19 @@ export interface TMDBSearchResult {
   poster_url?: string;
 }
 
+export interface BackgroundJob {
+  id: number;
+  movie_id: number;
+  movie_title: string;
+  type: string;
+  status: "queued" | "running" | "completed" | "failed";
+  progress_percent: number;
+  log_tail?: string;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+}
+
 export interface ThumbnailCandidate {
   index: number;
   url: string;

@@ -729,6 +729,37 @@ func (ic *ItemsController) Search(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"results": out})
 }
 
+// Jobs exposes the durable transcode queue for the admin activity screen.
+// Recent completed jobs are included so work does not disappear the instant
+// it finishes, while the result remains small on long-running libraries.
+func (ic *ItemsController) Jobs(c *gin.Context) {
+	type jobRow struct {
+		ID              uint       `json:"id"`
+		MovieID         uint       `json:"movie_id"`
+		MovieTitle      string     `json:"movie_title"`
+		Type            string     `json:"type"`
+		Status          string     `json:"status"`
+		ProgressPercent float64    `json:"progress_percent"`
+		LogTail         string     `json:"log_tail,omitempty"`
+		StartedAt       *time.Time `json:"started_at,omitempty"`
+		FinishedAt      *time.Time `json:"finished_at,omitempty"`
+		CreatedAt       time.Time  `json:"created_at"`
+	}
+
+	var jobs []jobRow
+	err := ic.db.Table("jobs").
+		Select("jobs.id, jobs.movie_id, COALESCE(movies.title, 'Deleted movie') AS movie_title, jobs.type, jobs.status, jobs.progress_percent, jobs.log_tail, jobs.started_at, jobs.finished_at, jobs.created_at").
+		Joins("LEFT JOIN movies ON movies.id = jobs.movie_id").
+		Order("CASE jobs.status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END, jobs.created_at DESC").
+		Limit(50).
+		Scan(&jobs).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load background jobs"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"jobs": jobs})
+}
+
 // Scan is a MagicBoxie-specific extension that kicks off a movie library scan
 // in the background and returns immediately.
 func (ic *ItemsController) Scan(c *gin.Context) {

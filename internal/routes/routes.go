@@ -88,6 +88,7 @@ func Register(router *gin.Engine, deps Dependencies) {
 			api.POST("/items/:itemId/thumbnails/select", deps.ItemsController.SelectThumbnail)
 			api.POST("/items/:itemId/sync", deps.ItemsController.SetDeviceSync)
 			api.GET("/items/search", deps.ItemsController.Search)
+			api.GET("/jobs", deps.ItemsController.Jobs)
 
 			api.POST("/uploads", deps.UploadsController.Create)
 			api.GET("/uploads/checksum/:sha256", deps.UploadsController.ChecksumStatus)
