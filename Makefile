@@ -22,7 +22,7 @@ PI_CONTENT_DIR ?= /content
 # magicboxie-device Pi find this server without a fixed/static IP.
 PI_HOSTNAME ?= magicboxie
 
-.PHONY: default build build-local build-web build-go run run-local dev restart deploy open test tidy setup pi-setup pi-install pi-run pi-logs
+.PHONY: default build build-local build-web build-go run run-local dev restart deploy publish open test tidy setup pi-setup pi-install pi-run pi-logs
 
 # Keep the no-argument workflow aligned with `make dev`.
 default: dev
@@ -110,6 +110,11 @@ restart: build-local
 # handled by deploy/server_setup.sh.
 deploy:
 	./deploy/deploy.sh
+
+# Publish the current checkout to the LAN Raspberry Pi. Override the target
+# with MAGICBOX_SSH_TARGET=user@host when needed.
+publish:
+	./deploy/pi/publish.sh
 
 # Complete Raspberry Pi setup, including hostname, nginx on port 80, build,
 # and systemd services. Run on the Pi itself.
