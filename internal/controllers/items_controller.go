@@ -826,6 +826,18 @@ func (ic *ItemsController) RegisterDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, itemsResponse{Items: items, TotalRecordCount: len(items)})
 }
 
+// ListDevices reports every Pi that has ever called RegisterDevice and when
+// it last did, for the web/app UI to show as connectivity - not an access
+// control list (see Device's own doc comment).
+func (ic *ItemsController) ListDevices(c *gin.Context) {
+	var devices []models.Device
+	if err := ic.db.Order("last_seen_at desc").Find(&devices).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list devices"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"devices": devices})
+}
+
 func (ic *ItemsController) loadMovie(c *gin.Context) (models.Movie, bool) {
 	id, ok := parseItemID(c.Param("itemId"), "movie")
 	if !ok {
