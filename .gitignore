@@ -1,6 +1,6 @@
 /bin/
-/configs/magicbox.yaml
-/configs/magicbox.local.yaml
+/configs/magicboxie.yaml
+/configs/magicboxie.local.yaml
 *.sqlite
 *.sqlite-journal
 jwt.key

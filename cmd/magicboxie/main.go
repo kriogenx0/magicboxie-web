@@ -11,19 +11,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"magicbox/internal/auth"
-	"magicbox/internal/config"
-	"magicbox/internal/controllers"
-	"magicbox/internal/db"
-	"magicbox/internal/models"
-	"magicbox/internal/routes"
-	"magicbox/internal/services/events"
-	"magicbox/internal/services/library"
-	"magicbox/internal/services/music"
-	"magicbox/internal/services/tmdb"
-	"magicbox/internal/services/transcode"
-	"magicbox/internal/services/upload"
-	"magicbox/internal/web"
+	"magicboxie/internal/auth"
+	"magicboxie/internal/config"
+	"magicboxie/internal/controllers"
+	"magicboxie/internal/db"
+	"magicboxie/internal/models"
+	"magicboxie/internal/routes"
+	"magicboxie/internal/services/events"
+	"magicboxie/internal/services/library"
+	"magicboxie/internal/services/music"
+	"magicboxie/internal/services/tmdb"
+	"magicboxie/internal/services/transcode"
+	"magicboxie/internal/services/upload"
+	"magicboxie/internal/web"
 )
 
 func main() {
@@ -36,16 +36,16 @@ func main() {
 		return
 	}
 
-	defaultConfigPath := os.Getenv("MAGICBOX_CONFIG")
+	defaultConfigPath := os.Getenv("MAGICBOXIE_CONFIG")
 	if defaultConfigPath == "" {
-		defaultConfigPath = "/etc/magicbox/config.yaml"
+		defaultConfigPath = "/etc/magicboxie/config.yaml"
 	}
 	configPath := flag.String("config", defaultConfigPath, "path to config YAML file")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("magicbox: %v", err)
+		log.Fatalf("magicboxie: %v", err)
 	}
 
 	for _, dir := range []string{cfg.DataDir, cfg.MoviesDir, cfg.MusicDir} {
@@ -53,24 +53,24 @@ func main() {
 			continue
 		}
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			log.Fatalf("magicbox: creating directory %q: %v", dir, err)
+			log.Fatalf("magicboxie: creating directory %q: %v", dir, err)
 		}
 	}
 
 	for _, bin := range []string{"ffmpeg", "ffprobe"} {
 		if _, err := exec.LookPath(bin); err != nil {
-			log.Fatalf("magicbox: required dependency %q not found on PATH: %v", bin, err)
+			log.Fatalf("magicboxie: required dependency %q not found on PATH: %v", bin, err)
 		}
 	}
 
 	gormDB, err := db.Open(cfg.DataDir)
 	if err != nil {
-		log.Fatalf("magicbox: %v", err)
+		log.Fatalf("magicboxie: %v", err)
 	}
 
 	authManager, err := auth.NewManager(cfg.DataDir)
 	if err != nil {
-		log.Fatalf("magicbox: %v", err)
+		log.Fatalf("magicboxie: %v", err)
 	}
 
 	tmdbClient := tmdb.NewClient(cfg.TMDB.APIReadToken)
@@ -89,7 +89,7 @@ func main() {
 
 	uploadManager, err := upload.NewManager(gormDB, cfg.MoviesDir)
 	if err != nil {
-		log.Fatalf("magicbox: %v", err)
+		log.Fatalf("magicboxie: %v", err)
 	}
 	uploadsController := controllers.NewUploadsController(uploadManager, cfg.MoviesDir, cfg.MusicDir, importer, musicImporter)
 
@@ -106,19 +106,19 @@ func main() {
 
 	fsys, err := web.FileSystem()
 	if err != nil {
-		log.Fatalf("magicbox: %v", err)
+		log.Fatalf("magicboxie: %v", err)
 	}
 	web.RegisterSPA(router, fsys)
 
-	log.Printf("magicbox: listening on %s", cfg.ListenAddr)
+	log.Printf("magicboxie: listening on %s", cfg.ListenAddr)
 	if err := router.Run(cfg.ListenAddr); err != nil {
-		log.Fatalf("magicbox: server error: %v", err)
+		log.Fatalf("magicboxie: server error: %v", err)
 	}
 }
 
 func runRematchTMDB(args []string) {
 	flags := flag.NewFlagSet("rematch-tmdb", flag.ExitOnError)
-	configPath := flags.String("config", "/etc/magicbox/config.yaml", "path to config YAML file")
+	configPath := flags.String("config", "/etc/magicboxie/config.yaml", "path to config YAML file")
 	_ = flags.Parse(args)
 	cfg, err := config.Load(*configPath)
 	if err != nil {
@@ -165,12 +165,12 @@ func runRematchTMDB(args []string) {
 
 func runHashPassword() {
 	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "usage: magicbox hash-password <password>")
+		fmt.Fprintln(os.Stderr, "usage: magicboxie hash-password <password>")
 		os.Exit(1)
 	}
 	hash, err := auth.HashPassword(os.Args[2])
 	if err != nil {
-		log.Fatalf("magicbox: %v", err)
+		log.Fatalf("magicboxie: %v", err)
 	}
 	fmt.Println(hash)
 }

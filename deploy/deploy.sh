@@ -1,6 +1,6 @@
 #!/bin/bash
-# Deploys magicbox-web to production end to end: copies the compose file,
-# picks (or reuses) a stable HOST_PORT, brings up the magicbox container,
+# Deploys magicboxie-web to production end to end: copies the compose file,
+# picks (or reuses) a stable HOST_PORT, brings up the magicboxie container,
 # and installs this app's own nginx vhost + TLS cert. Run from CI
 # (.github/workflows/deploy.yml) or by hand -- either way it just
 # SSHes/SCPs to deploy@104.131.183.186; no other tooling required. Safe to
@@ -13,8 +13,8 @@
 # deploy scripts".
 #
 # Needs, on top of the shared sudoers grant bootstrap.sh installs: the
-# per-app grant at deploy/server/sudoers.d/magicbox-web (installed once, by
-# hand, as admin -- see that file's own header), and config/magicbox.yaml
+# per-app grant at deploy/server/sudoers.d/magicboxie-web (installed once, by
+# hand, as admin -- see that file's own header), and config/magicboxie.yaml
 # already present on the server (deploy/server_setup.sh creates it from
 # the example -- see that script; this deploy script never writes or
 # overwrites it, since it holds the auth password hash and TMDB token).
@@ -33,9 +33,9 @@ ssh "$SSH_TARGET" "sudo mkdir -p '$REMOTE_DIR' && sudo chown deploy:deploy '$REM
 echo "==> Copying compose file"
 scp "$SCRIPT_DIR/../docker-compose.prod.yml" "$SSH_TARGET:$REMOTE_DIR/docker-compose.yml"
 
-echo "==> Checking config/magicbox.yaml exists (deploy/server_setup.sh creates it -- this script never writes it)"
-ssh "$SSH_TARGET" "test -f '$REMOTE_DIR/config/magicbox.yaml'" || {
-  echo "Missing $REMOTE_DIR/config/magicbox.yaml on the server." >&2
+echo "==> Checking config/magicboxie.yaml exists (deploy/server_setup.sh creates it -- this script never writes it)"
+ssh "$SSH_TARGET" "test -f '$REMOTE_DIR/config/magicboxie.yaml'" || {
+  echo "Missing $REMOTE_DIR/config/magicboxie.yaml on the server." >&2
   echo "Run deploy/server_setup.sh once first (see that script's header)." >&2
   exit 1
 }
@@ -54,8 +54,8 @@ REMOTE
 )
 echo "    HOST_PORT=$HOST_PORT"
 
-echo "==> Pulling + recreating the magicbox container"
-ssh "$SSH_TARGET" "cd '$REMOTE_DIR' && docker compose pull magicbox && docker compose up -d --no-deps magicbox && docker image prune -f"
+echo "==> Pulling + recreating the magicboxie container"
+ssh "$SSH_TARGET" "cd '$REMOTE_DIR' && docker compose pull magicboxie && docker compose up -d --no-deps magicboxie && docker image prune -f"
 
 install_vhost() {
   local SRC="$1"

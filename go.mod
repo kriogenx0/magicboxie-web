@@ -1,4 +1,4 @@
-module magicbox
+module magicboxie
 
 go 1.26.5
 

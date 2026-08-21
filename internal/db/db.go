@@ -8,13 +8,13 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"magicbox/internal/models"
+	"magicboxie/internal/models"
 )
 
 // Open opens (creating if necessary) the SQLite database under dataDir and
 // runs AutoMigrate for all known models.
 func Open(dataDir string) (*gorm.DB, error) {
-	dsn := filepath.Join(dataDir, "magicbox.sqlite")
+	dsn := filepath.Join(dataDir, "magicboxie.sqlite")
 
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),

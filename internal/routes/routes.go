@@ -3,10 +3,10 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 
-	"magicbox/internal/auth"
-	"magicbox/internal/controllers"
-	"magicbox/internal/middleware"
-	"magicbox/internal/services/events"
+	"magicboxie/internal/auth"
+	"magicboxie/internal/controllers"
+	"magicboxie/internal/middleware"
+	"magicboxie/internal/services/events"
 )
 
 type Dependencies struct {
@@ -23,7 +23,7 @@ type Dependencies struct {
 //
 //  1. A Jellyfin-compatible surface at bare paths (/System, /Users, /Items,
 //     /Videos, /Sessions) matching real Jellyfin's conventions exactly, so
-//     magicbox-appletv (already a partial Jellyfin client) and any generic
+//     magicboxie-appletv (already a partial Jellyfin client) and any generic
 //     Jellyfin client work against this server unmodified.
 //  2. MagicBoxie-specific extensions with no Jellyfin equivalent (chunked
 //     upload, library scan trigger, SSE job-progress, manual TMDB

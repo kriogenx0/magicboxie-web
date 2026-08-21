@@ -1,13 +1,13 @@
 services:
-  magicbox:
+  magicboxie:
     build: .
     ports:
       - "8080:8080"
     volumes:
-      - ./configs/magicbox.yaml:/etc/magicbox/config.yaml:ro
-      - magicbox-data:/var/lib/magicbox
+      - ./configs/magicboxie.yaml:/etc/magicboxie/config.yaml:ro
+      - magicboxie-data:/var/lib/magicboxie
       - ${CONTENT_DIR:-./content}:/content
     restart: unless-stopped
 
 volumes:
-  magicbox-data:
+  magicboxie-data:

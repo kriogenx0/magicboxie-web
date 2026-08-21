@@ -7,8 +7,8 @@
 #
 # Not installed automatically -- deploy has no sudo to install its own
 # sudoers rules (that's the point). Install once, by hand, as admin:
-#   scp deploy/server/sudoers.d/magicbox-web admin@104.131.183.186:/tmp/
-#   ssh admin@104.131.183.186 'sudo visudo -c -f /tmp/magicbox-web && sudo install -m 0440 -o root -g root /tmp/magicbox-web /etc/sudoers.d/magicbox-web && rm /tmp/magicbox-web'
+#   scp deploy/server/sudoers.d/magicboxie-web admin@104.131.183.186:/tmp/
+#   ssh admin@104.131.183.186 'sudo visudo -c -f /tmp/magicboxie-web && sudo install -m 0440 -o root -g root /tmp/magicboxie-web /etc/sudoers.d/magicboxie-web && rm /tmp/magicboxie-web'
 #
 # The certbot line's exact wording must match deploy/deploy.sh's own
 # invocation verbatim (sudoers NOPASSWD matching is a literal string

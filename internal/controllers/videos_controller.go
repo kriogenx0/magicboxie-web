@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"magicbox/internal/models"
+	"magicboxie/internal/models"
 )
 
 type VideosController struct {
@@ -66,8 +66,8 @@ func (vc *VideosController) Preview(c *gin.Context) {
 
 // Stream serves a movie's playable file with Range support at Jellyfin's
 // conventional /Videos/{itemId}/stream path. Used by the web <video> tag,
-// AVPlayer (magicbox-appletv), and any client downloading the file directly
-// (magicbox-device's home-sync, magicbox-ios).
+// AVPlayer (magicboxie-appletv), and any client downloading the file directly
+// (magicboxie-device's home-sync, magicboxie-ios).
 func (vc *VideosController) Stream(c *gin.Context) {
 	id, ok := parseItemID(c.Param("itemId"), "movie")
 	if !ok {

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run this ON THE SERVER (unlike this repo's other deploy/*.sh, which run
 # from your machine and SSH out) -- it prompts for the login password and
-# TMDB token and writes them into config/magicbox.yaml in place, leaving
+# TMDB token and writes them into config/magicboxie.yaml in place, leaving
 # every other setting (movies_dir, transcode, etc.) untouched. Safe to
 # re-run any time to rotate either value.
 #
@@ -11,8 +11,8 @@
 # No sudo needed -- deploy already owns /var/www/magicboxie.com/config
 # (server_setup.sh's job). The password hash is computed with a
 # `docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 ...` one-liner rather
-# than `docker run ghcr.io/kriogenx0/magicbox-web hash-password ...`
-# (config/magicbox.yaml's own comment, and server_setup.sh's header) so
+# than `docker run ghcr.io/kriogenx0/magicboxie-web hash-password ...`
+# (config/magicboxie.yaml's own comment, and server_setup.sh's header) so
 # this doesn't depend on that image existing in GHCR yet -- htpasswd -B is
 # plain bcrypt, cost 10, same as the app's own
 # `bcrypt.GenerateFromPassword(pw, bcrypt.DefaultCost)`
@@ -20,7 +20,7 @@
 # Go's bcrypt.CompareHashAndPassword accepts both.
 set -euo pipefail
 
-CONFIG="/var/www/magicboxie.com/config/magicbox.yaml"
+CONFIG="/var/www/magicboxie.com/config/magicboxie.yaml"
 
 test -f "$CONFIG" || {
   echo "Missing $CONFIG -- run deploy/server_setup.sh from your machine first." >&2
@@ -52,4 +52,4 @@ mv "$TMP" "$CONFIG"
 chmod 600 "$CONFIG"
 
 echo "==> Done. Restart the container to pick this up, if it's already running:"
-echo "    cd /var/www/magicboxie.com && docker compose restart magicbox"
+echo "    cd /var/www/magicboxie.com && docker compose restart magicboxie"

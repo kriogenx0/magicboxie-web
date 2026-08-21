@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(password: string) {
     const res = await apiFetch<AuthenticateByNameResponse>("/Users/AuthenticateByName", {
       method: "POST",
-      body: JSON.stringify({ Username: "magicbox-web", Pw: password }),
+      body: JSON.stringify({ Username: "magicboxie-web", Pw: password }),
     });
     setToken(res.AccessToken);
     setIsAuthenticated(true);

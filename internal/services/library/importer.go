@@ -14,11 +14,11 @@ import (
 
 	"gorm.io/gorm"
 
-	"magicbox/internal/models"
-	"magicbox/internal/services/media"
-	"magicbox/internal/services/mediatype"
-	"magicbox/internal/services/thumbnail"
-	"magicbox/internal/services/tmdb"
+	"magicboxie/internal/models"
+	"magicboxie/internal/services/media"
+	"magicboxie/internal/services/mediatype"
+	"magicboxie/internal/services/thumbnail"
+	"magicboxie/internal/services/tmdb"
 )
 
 type Importer struct {

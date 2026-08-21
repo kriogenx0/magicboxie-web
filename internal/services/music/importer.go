@@ -16,9 +16,9 @@ import (
 	"github.com/dhowden/tag"
 	"gorm.io/gorm"
 
-	"magicbox/internal/models"
-	"magicbox/internal/services/media"
-	"magicbox/internal/services/mediatype"
+	"magicboxie/internal/models"
+	"magicboxie/internal/services/media"
+	"magicboxie/internal/services/mediatype"
 )
 
 type Importer struct {

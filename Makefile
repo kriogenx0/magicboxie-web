@@ -1,11 +1,11 @@
-BINARY := magicbox
-IMAGE := magicbox
+BINARY := magicboxie
+IMAGE := magicboxie
 # Local dev (run-local/dev) listens on :8090, separate from Docker's :8080
 # (docker-compose.yml), so both can run side by side without a port clash.
-URL := $(if $(MAGICBOX_URL),$(MAGICBOX_URL),http://localhost:8090)
+URL := $(if $(MAGICBOXIE_URL),$(MAGICBOXIE_URL),http://localhost:8090)
 
 # Raspberry Pi (Raspbian/Raspberry Pi OS) bare-metal target: builds and
-# runs directly on the Pi via systemd (deploy/systemd/magicbox.service)
+# runs directly on the Pi via systemd (deploy/systemd/magicboxie.service)
 # instead of Docker -- lighter on Pi-class hardware and avoids multi-arch
 # image builds. Run pi-* targets ON the Pi itself.
 PI_GO_VERSION := 1.26.5
@@ -45,38 +45,38 @@ build-web:
 	fi
 
 build-go:
-	go build -o bin/$(BINARY) ./cmd/magicbox
+	go build -o bin/$(BINARY) ./cmd/magicboxie
 
 # Runs the app the same way it's actually deployed: via Docker (see
-# docker-compose.yml). Bootstraps configs/magicbox.yaml from the example on
+# docker-compose.yml). Bootstraps configs/magicboxie.yaml from the example on
 # first run, since docker-compose bind-mounts it directly.
 run:
-	@test -f configs/magicbox.yaml || { \
-		cp configs/magicbox.example.yaml configs/magicbox.yaml; \
-		echo "Created configs/magicbox.yaml from the example -- set auth.password_hash" \
+	@test -f configs/magicboxie.yaml || { \
+		cp configs/magicboxie.example.yaml configs/magicboxie.yaml; \
+		echo "Created configs/magicboxie.yaml from the example -- set auth.password_hash" \
 		     "(generate one with: docker run --rm $(IMAGE) hash-password '<password>')" \
 		     "before logging in."; \
 	}
 	docker compose up --build
 
 # Runs the locally-built binary directly (no Docker), against
-# configs/magicbox.local.yaml -- for fast local dev iteration. Static
+# configs/magicboxie.local.yaml -- for fast local dev iteration. Static
 # assets (movies/music) and app data live under ./content and ./data.
 run-local: build-local
-	@test -f configs/magicbox.local.yaml || { \
-		echo "configs/magicbox.local.yaml not found -- copy configs/magicbox.example.yaml," \
+	@test -f configs/magicboxie.local.yaml || { \
+		echo "configs/magicboxie.local.yaml not found -- copy configs/magicboxie.example.yaml," \
 		     "point movies_dir/music_dir/data_dir at local paths (e.g. content/movies," \
 		     "content/music, data), and set auth.password_hash." ; \
 		exit 1 ; \
 	}
 	@mkdir -p content/movies content/music data
-	MAGICBOX_CONFIG=configs/magicbox.local.yaml ./bin/$(BINARY)
+	MAGICBOXIE_CONFIG=configs/magicboxie.local.yaml ./bin/$(BINARY)
 
 # Same as run-local, but also opens the server in the browser once it's
 # ready to accept connections. Ctrl+C stops the server.
 dev: build-local
-	@test -f configs/magicbox.local.yaml || { \
-		echo "configs/magicbox.local.yaml not found -- copy configs/magicbox.example.yaml," \
+	@test -f configs/magicboxie.local.yaml || { \
+		echo "configs/magicboxie.local.yaml not found -- copy configs/magicboxie.example.yaml," \
 		     "point movies_dir/music_dir/data_dir at local paths (e.g. content/movies," \
 		     "content/music, data), and set auth.password_hash." ; \
 		exit 1 ; \
@@ -91,18 +91,18 @@ dev: build-local
 			echo "Server did not respond at $(URL) within 20s -- not opening browser" >&2 ; \
 		fi \
 	) &
-	MAGICBOX_CONFIG=configs/magicbox.local.yaml ./bin/$(BINARY)
+	MAGICBOXIE_CONFIG=configs/magicboxie.local.yaml ./bin/$(BINARY)
 
 restart: build-local
-	@test -f configs/magicbox.local.yaml || { \
-		echo "configs/magicbox.local.yaml not found -- copy configs/magicbox.example.yaml," \
+	@test -f configs/magicboxie.local.yaml || { \
+		echo "configs/magicboxie.local.yaml not found -- copy configs/magicboxie.example.yaml," \
 		     "point movies_dir/music_dir/data_dir at local paths (e.g. content/movies," \
 		     "content/music, data), and set auth.password_hash." ; \
 		exit 1 ; \
 	}
 	@mkdir -p content/movies content/music data
-	@pkill -f './bin/magicbox' || true
-	@MAGICBOX_CONFIG=configs/magicbox.local.yaml ./bin/$(BINARY) > /tmp/magicbox.log 2>&1 & \
+	@pkill -f './bin/magicboxie' || true
+	@MAGICBOXIE_CONFIG=configs/magicboxie.local.yaml ./bin/$(BINARY) > /tmp/magicboxie.log 2>&1 & \
 	 echo "Restarted MagicBoxie (PID $$!)"
 
 # Deploy the published container image and refresh this app's production
@@ -112,7 +112,7 @@ deploy:
 	./deploy/deploy.sh
 
 # Publish the current checkout to the LAN Raspberry Pi. Override the target
-# with MAGICBOX_SSH_TARGET=user@host when needed.
+# with MAGICBOXIE_SSH_TARGET=user@host when needed.
 publish:
 	./deploy/pi/publish.sh
 
@@ -124,7 +124,7 @@ setup:
 # One-time, run on the Pi itself: installs Go (official tarball -- apt's
 # package is far behind go.mod's requirement) + Node (via NodeSource --
 # apt's version varies too much by Raspbian release to trust for Vite) +
-# ffmpeg, creates the `magicbox` system user the systemd unit runs as, and
+# ffmpeg, creates the `magicboxie` system user the systemd unit runs as, and
 # the directories it needs. Safe to re-run.
 pi-setup:
 	@echo "Detected arch: $(PI_ARCH)"
@@ -153,43 +153,43 @@ pi-setup:
 		curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - ; \
 		sudo apt-get install -y nodejs ; \
 	}
-	sudo id magicbox >/dev/null 2>&1 || sudo useradd --system --create-home --home-dir /opt/magicbox --shell /usr/sbin/nologin magicbox
-	sudo mkdir -p /opt/magicbox/bin /etc/magicbox /var/lib/magicbox $(PI_CONTENT_DIR)/movies $(PI_CONTENT_DIR)/music
-	sudo chown -R magicbox:magicbox /opt/magicbox /var/lib/magicbox $(PI_CONTENT_DIR)
+	sudo id magicboxie >/dev/null 2>&1 || sudo useradd --system --create-home --home-dir /opt/magicboxie --shell /usr/sbin/nologin magicboxie
+	sudo mkdir -p /opt/magicboxie/bin /etc/magicboxie /var/lib/magicboxie $(PI_CONTENT_DIR)/movies $(PI_CONTENT_DIR)/music
+	sudo chown -R magicboxie:magicboxie /opt/magicboxie /var/lib/magicboxie $(PI_CONTENT_DIR)
 	@echo "Done. Open a new shell (so /usr/local/go/bin is on PATH), then: make pi-install"
 
-# Builds on the Pi and installs the binary + systemd unit as the `magicbox`
-# system user. Never overwrites an existing /etc/magicbox/config.yaml --
+# Builds on the Pi and installs the binary + systemd unit as the `magicboxie`
+# system user. Never overwrites an existing /etc/magicboxie/config.yaml --
 # that holds the auth password hash and TMDB token, set by hand once (see
-# configs/magicbox.example.yaml's own comments) and preserved across
+# configs/magicboxie.example.yaml's own comments) and preserved across
 # re-installs/updates.
 pi-install:
 	cd frontend && npm ci && npm run build
-	$(PI_GO) build -o bin/$(BINARY) ./cmd/magicbox
-	sudo install -m 0755 -o magicbox -g magicbox bin/$(BINARY) /opt/magicbox/bin/$(BINARY)
-	sudo test -f /etc/magicbox/config.yaml || { \
-		sudo install -m 0640 -o magicbox -g magicbox configs/magicbox.example.yaml /etc/magicbox/config.yaml ; \
-		echo "Created /etc/magicbox/config.yaml from the example -- set auth.password_hash" \
-		     "(generate with: /opt/magicbox/bin/$(BINARY) hash-password '<password>')" \
+	$(PI_GO) build -o bin/$(BINARY) ./cmd/magicboxie
+	sudo install -m 0755 -o magicboxie -g magicboxie bin/$(BINARY) /opt/magicboxie/bin/$(BINARY)
+	sudo test -f /etc/magicboxie/config.yaml || { \
+		sudo install -m 0640 -o magicboxie -g magicboxie configs/magicboxie.example.yaml /etc/magicboxie/config.yaml ; \
+		echo "Created /etc/magicboxie/config.yaml from the example -- set auth.password_hash" \
+		     "(generate with: /opt/magicboxie/bin/$(BINARY) hash-password '<password>')" \
 		     "and tmdb.api_read_token before starting the service." ; \
 	}
-	sudo install -m 0644 deploy/systemd/magicbox.service /etc/systemd/system/magicbox.service
+	sudo install -m 0644 deploy/systemd/magicboxie.service /etc/systemd/system/magicboxie.service
 	sudo systemctl daemon-reload
-	sudo systemctl enable magicbox
+	sudo systemctl enable magicboxie
 	@echo "Installed. Run 'make pi-run' to (re)start it."
 
 # Rebuilds + reinstalls (pi-install), then (re)starts the systemd service
 # and tails its logs -- Ctrl+C stops following logs without stopping the
 # service. Safe to re-run after a git pull to deploy an update.
 pi-run: pi-install
-	sudo systemctl restart magicbox
+	sudo systemctl restart magicboxie
 	$(MAKE) pi-logs
 
 pi-logs:
-	sudo journalctl -u magicbox -f
+	sudo journalctl -u magicboxie -f
 
 # Opens the running server in the default browser. Override the target URL
-# with MAGICBOX_URL=... if your local config listens on a different address.
+# with MAGICBOXIE_URL=... if your local config listens on a different address.
 open:
 	@open "$(URL)" 2>/dev/null || xdg-open "$(URL)" 2>/dev/null || echo "Open $(URL) in your browser"
 

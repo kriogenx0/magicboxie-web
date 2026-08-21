@@ -19,8 +19,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"magicbox/internal/models"
-	"magicbox/internal/services/events"
+	"magicboxie/internal/models"
+	"magicboxie/internal/services/events"
 )
 
 const progressUpdateInterval = 1 * time.Second
@@ -129,7 +129,7 @@ func (m *Manager) process(ctx context.Context, movieID uint) {
 	m.db.Model(&movie).Update("status", models.MovieStatusTranscoding)
 
 	srcPath := filepath.Join(m.moviesDir, movie.PlayableRelpath)
-	tmpDir := filepath.Join(m.moviesDir, ".magicbox", "transcode-tmp")
+	tmpDir := filepath.Join(m.moviesDir, ".magicboxie", "transcode-tmp")
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		m.fail(&job, &movie, fmt.Errorf("creating transcode tmp dir: %w", err))
 		return

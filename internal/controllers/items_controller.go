@@ -18,10 +18,10 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"magicbox/internal/models"
-	"magicbox/internal/services/library"
-	"magicbox/internal/services/music"
-	"magicbox/internal/services/tmdb"
+	"magicboxie/internal/models"
+	"magicboxie/internal/services/library"
+	"magicboxie/internal/services/music"
+	"magicboxie/internal/services/tmdb"
 )
 
 type ItemsController struct {
@@ -39,7 +39,7 @@ func NewItemsController(db *gorm.DB, importer *library.Importer, musicImporter *
 // ---- Jellyfin response shapes ----
 //
 // Fields are PascalCase to match real Jellyfin's wire format exactly (see
-// magicbox-appletv's JellyfinItem.swift CodingKeys). The MagicBoxie*-prefixed
+// magicboxie-appletv's JellyfinItem.swift CodingKeys). The MagicBoxie*-prefixed
 // fields are additive extensions real/generic Jellyfin clients simply
 // ignore (unknown JSON keys are dropped by Codable), while MagicBoxie-aware
 // clients (the web frontend, magicboxie-device's home-sync) read them for
@@ -333,7 +333,7 @@ func (ic *ItemsController) albumAndArtistName(albumID uint) (albumTitle, artistN
 }
 
 // Latest returns a bare array (not the paging envelope) of the most
-// recently-ready movies, matching magicbox-appletv's
+// recently-ready movies, matching magicboxie-appletv's
 // MovieService.fetchLatestMovies() expectation exactly.
 func (ic *ItemsController) Latest(c *gin.Context) {
 	limit := 20

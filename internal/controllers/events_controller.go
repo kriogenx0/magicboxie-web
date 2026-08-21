@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"magicbox/internal/services/events"
+	"magicboxie/internal/services/events"
 )
 
 // Events streams job_progress / job_completed / job_failed updates over

@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"magicbox/internal/models"
+	"magicboxie/internal/models"
 )
 
 const DefaultChunkSizeBytes = 8 * 1024 * 1024 // advisory only; client may use any chunk size
@@ -31,7 +31,7 @@ var (
 
 type Manager struct {
 	db         *gorm.DB
-	stagingDir string // <movies_dir>/.magicbox/uploads-tmp
+	stagingDir string // <movies_dir>/.magicboxie/uploads-tmp
 }
 
 // Checksum calculates the SHA-256 digest of the fully received staging file.
@@ -78,7 +78,7 @@ func (m *Manager) Abort(session *models.UploadSession) error {
 }
 
 func NewManager(db *gorm.DB, moviesDir string) (*Manager, error) {
-	staging := filepath.Join(moviesDir, ".magicbox", "uploads-tmp")
+	staging := filepath.Join(moviesDir, ".magicboxie", "uploads-tmp")
 	if err := os.MkdirAll(staging, 0o755); err != nil {
 		return nil, fmt.Errorf("creating upload staging dir: %w", err)
 	}

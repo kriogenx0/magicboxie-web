@@ -1,4 +1,4 @@
-const TOKEN_KEY = "magicbox_token";
+const TOKEN_KEY = "magicboxie_token";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);

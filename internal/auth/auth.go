@@ -60,7 +60,7 @@ func CheckPassword(hash, password string) bool {
 func (m *Manager) IssueToken() (token string, expiresAt time.Time, err error) {
 	expiresAt = time.Now().Add(tokenTTL)
 	claims := jwt.RegisteredClaims{
-		Subject:   "magicbox",
+		Subject:   "magicboxie",
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		ExpiresAt: jwt.NewNumericDate(expiresAt),
 	}

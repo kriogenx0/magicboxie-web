@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"magicbox/internal/services/tmdb"
+	"magicboxie/internal/services/tmdb"
 )
 
 // cacheImage downloads a TMDB image (skipping if tmdbImagePath is empty) and

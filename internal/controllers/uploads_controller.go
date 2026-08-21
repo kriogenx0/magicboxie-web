@@ -15,11 +15,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"magicbox/internal/models"
-	"magicbox/internal/services/library"
-	"magicbox/internal/services/mediatype"
-	"magicbox/internal/services/music"
-	"magicbox/internal/services/upload"
+	"magicboxie/internal/models"
+	"magicboxie/internal/services/library"
+	"magicboxie/internal/services/mediatype"
+	"magicboxie/internal/services/music"
+	"magicboxie/internal/services/upload"
 )
 
 var sha256Pattern = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)

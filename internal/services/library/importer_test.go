@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"magicbox/internal/db"
-	"magicbox/internal/models"
-	"magicbox/internal/services/tmdb"
+	"magicboxie/internal/db"
+	"magicboxie/internal/models"
+	"magicboxie/internal/services/tmdb"
 )
 
 func TestApplyTMDBDetailsPrefersTMDBTitle(t *testing.T) {

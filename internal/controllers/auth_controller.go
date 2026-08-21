@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"magicbox/internal/auth"
-	"magicbox/internal/config"
+	"magicboxie/internal/auth"
+	"magicboxie/internal/config"
 )
 
 type AuthController struct {
@@ -19,7 +19,7 @@ func NewAuthController(cfg *config.Config, manager *auth.Manager) *AuthControlle
 }
 
 // SystemInfoPublic is the unauthenticated "is this a real server" endpoint
-// Jellyfin clients (e.g. magicbox-appletv's AddServerView) call before
+// Jellyfin clients (e.g. magicboxie-appletv's AddServerView) call before
 // showing a login screen.
 func (a *AuthController) SystemInfoPublic(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
@@ -28,7 +28,7 @@ func (a *AuthController) SystemInfoPublic(c *gin.Context) {
 		"ProductName":            "Jellyfin Server",
 		"OperatingSystem":        "Linux",
 		"StartupWizardCompleted": true,
-		"Id":                     "magicbox",
+		"Id":                     "magicboxie",
 	})
 }
 
@@ -48,7 +48,7 @@ func (a *AuthController) CurrentUser(c *gin.Context) {
 func jellyfinUser(name string) gin.H {
 	return gin.H{
 		"Name":                      name,
-		"ServerId":                  "magicbox",
+		"ServerId":                  "magicboxie",
 		"Id":                        "1",
 		"HasPassword":               true,
 		"HasConfiguredPassword":     true,
@@ -110,12 +110,12 @@ func (a *AuthController) AuthenticateByName(c *gin.Context) {
 
 	username := req.Username
 	if username == "" {
-		username = "magicbox"
+		username = "magicboxie"
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"AccessToken": token,
-		"ServerId":    "magicbox",
+		"ServerId":    "magicboxie",
 		"User":        jellyfinUser(username),
 	})
 }

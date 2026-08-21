@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"magicbox/internal/models"
+	"magicboxie/internal/models"
 )
 
 type AudioController struct {

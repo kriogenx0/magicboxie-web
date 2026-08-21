@@ -3,8 +3,8 @@
 # the repository root on the Pi. It is safe to re-run for upgrades.
 set -euo pipefail
 
-HOSTNAME="${MAGICBOX_HOSTNAME:-magicboxie}"
-CONTENT_DIR="${MAGICBOX_CONTENT_DIR:-/content}"
+HOSTNAME="${MAGICBOXIE_HOSTNAME:-magicboxie}"
+CONTENT_DIR="${MAGICBOXIE_CONTENT_DIR:-/content}"
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 if [ ! -f "$SCRIPT_DIR/Makefile" ]; then
@@ -44,7 +44,7 @@ env "${BUILD_ENV[@]}" make pi-install PI_HOSTNAME="$HOSTNAME" PI_CONTENT_DIR="$C
 
 # nginx owns the public listener, so do not expose the application server's
 # port directly on the LAN. Preserve every other user-configured setting.
-sudo sed -i 's|^listen_addr:.*|listen_addr: "127.0.0.1:8080"|' /etc/magicbox/config.yaml
+sudo sed -i 's|^listen_addr:.*|listen_addr: "127.0.0.1:8080"|' /etc/magicboxie/config.yaml
 
 echo "==> Installing nginx configuration"
 sudo install -m 0644 deploy/pi/nginx/magicboxie.conf /etc/nginx/sites-available/magicboxie
@@ -53,6 +53,6 @@ sudo nginx -t
 
 echo "==> Starting services"
 sudo systemctl enable --now nginx avahi-daemon
-sudo systemctl restart magicbox nginx
+sudo systemctl restart magicboxie nginx
 
 echo "Done. Open http://$HOSTNAME.lan or http://$HOSTNAME.local"

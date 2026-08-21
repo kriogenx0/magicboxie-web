@@ -7,14 +7,14 @@ After=network.target
 
 [Service]
 Type=simple
-User=magicbox
-Group=magicbox
-ExecStart=/opt/magicbox/bin/magicbox --config /etc/magicbox/config.yaml
+User=magicboxie
+Group=magicboxie
+ExecStart=/opt/magicboxie/bin/magicboxie --config /etc/magicboxie/config.yaml
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/magicbox /content
+ReadWritePaths=/var/lib/magicboxie /content
 ProtectHome=true
 
 [Install]

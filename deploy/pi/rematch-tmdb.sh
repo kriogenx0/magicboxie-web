@@ -1,4 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 
-sudo -u magicbox /opt/magicbox/bin/magicbox rematch-tmdb --config /etc/magicbox/config.yaml
+sudo -u magicboxie /opt/magicboxie/bin/magicboxie rematch-tmdb --config /etc/magicboxie/config.yaml

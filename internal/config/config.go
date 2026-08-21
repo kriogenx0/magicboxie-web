@@ -33,7 +33,7 @@ func defaults() Config {
 	c.ListenAddr = ":8080"
 	c.MoviesDir = "/content/movies"
 	c.MusicDir = "/content/music"
-	c.DataDir = "/var/lib/magicbox"
+	c.DataDir = "/var/lib/magicboxie"
 	c.Transcode.MaxConcurrentJobs = 1
 	c.Transcode.Preset = "medium"
 	c.Transcode.CRF = 20

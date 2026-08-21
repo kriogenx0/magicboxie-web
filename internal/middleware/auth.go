@@ -7,14 +7,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"magicbox/internal/auth"
+	"magicboxie/internal/auth"
 )
 
 var mediaBrowserTokenRe = regexp.MustCompile(`Token="([^"]*)"`)
 
 // RequireAuth accepts Jellyfin and generic token transports, in priority order:
 //  1. A Jellyfin-style "Authorization: MediaBrowser ...Token="..."" header
-//     (what magicbox-appletv's JellyfinClient sends).
+//     (what magicboxie-appletv's JellyfinClient sends).
 //  2. Jellyfin's X-Emby-Token header (used by Swiftfin and generated SDKs).
 //  3. A plain "Authorization: Bearer <token>" header (simpler clients).
 //  4. A "?api_key=<token>" query param -- Jellyfin's convention for URLs

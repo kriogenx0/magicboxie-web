@@ -7,7 +7,7 @@ import (
 )
 
 // PlayingProgress and PlayingStopped are Jellyfin's playback-reporting
-// endpoints. magicbox-appletv's client currently sends no body on these
+// endpoints. magicboxie-appletv's client currently sends no body on these
 // (confirmed during API investigation -- JellyfinRouter.httpBody returns
 // nil for both cases), so these handlers acknowledge whatever they get
 // rather than requiring specific fields. Richer position tracking can be

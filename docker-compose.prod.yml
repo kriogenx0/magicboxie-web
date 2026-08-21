@@ -1,4 +1,4 @@
-# Production stack for the magicboxie.com droplet -- just the one magicbox
+# Production stack for the magicboxie.com droplet -- just the one magicboxie
 # container (frontend + Go backend are baked into a single image by the
 # repo's own Dockerfile; no separate web/db services, unlike
 # docker-compose.yml's local-build equivalent).
@@ -12,7 +12,7 @@
 # already be in the registry (GitHub Actions builds + pushes it on every
 # push to main), not built on the server.
 #
-# config/magicbox.yaml must already exist on the server before this comes
+# config/magicboxie.yaml must already exist on the server before this comes
 # up -- deploy/server_setup.sh creates the directory and drops an example
 # there to edit by hand (auth.password_hash + tmdb.api_read_token are
 # secrets that can't be generated automatically, and this file is never
@@ -20,14 +20,14 @@
 # sqlite DB + jwt key live in named Docker volumes, not bind mounts --
 # `docker volume rm` if you ever need to reset either.
 services:
-  magicbox:
-    image: ghcr.io/kriogenx0/magicbox-web:latest
+  magicboxie:
+    image: ghcr.io/kriogenx0/magicboxie-web:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:${HOST_PORT}:8080"
     volumes:
-      - ./config/magicbox.yaml:/etc/magicbox/config.yaml:ro
-      - data:/var/lib/magicbox
+      - ./config/magicboxie.yaml:/etc/magicboxie/config.yaml:ro
+      - data:/var/lib/magicboxie
       - content:/content
 
 volumes:
