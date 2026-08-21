@@ -39,9 +39,16 @@ func NewImporter(db *gorm.DB, moviesDir, dataDir string, tmdbClient *tmdb.Client
 }
 
 // Scan walks moviesDir for video files not already known (by SourceRelpath)
-// and imports each one. Errors on individual files are logged and skipped
-// rather than aborting the whole scan.
+// and imports each one, then retries anything left stuck at "probing" or
+// "error" from an earlier interrupted run (see RetryStuck) - a plain
+// directory walk alone would never touch those again, since they already
+// have a row. Errors on individual files are logged and skipped rather
+// than aborting the whole scan.
 func (im *Importer) Scan(ctx context.Context) (imported int, err error) {
+	if _, retryErr := im.RetryStuck(ctx); retryErr != nil {
+		log.Printf("library: retrying stuck movies failed: %v", retryErr)
+	}
+
 	err = filepath.WalkDir(im.moviesDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -109,6 +116,15 @@ func (im *Importer) importFile(ctx context.Context, relpath, absPath string) err
 		return fmt.Errorf("creating movie row: %w", err)
 	}
 
+	return im.probeAndFinalize(ctx, movie, absPath, title, year)
+}
+
+// probeAndFinalize runs ffprobe + TMDB matching against movie's file and
+// saves the result - status ends at "ready"/"needs_transcode" on success or
+// "error" (with error_message) if ffprobe itself fails. Shared by
+// importFile (a freshly-created row) and RetryStuck (an existing row an
+// earlier run never got this far for).
+func (im *Importer) probeAndFinalize(ctx context.Context, movie *models.Movie, absPath, title string, year int) error {
 	info, err := media.Probe(ctx, absPath)
 	if err != nil {
 		im.db.Model(movie).Updates(map[string]interface{}{
@@ -139,6 +155,36 @@ func (im *Importer) importFile(ctx context.Context, relpath, absPath string) err
 		im.OnNeedsTranscode(movie.ID)
 	}
 	return nil
+}
+
+// RetryStuck finds every movie left at "probing" or "error" - an import
+// that was interrupted (crash, restart, ...) before reaching a terminal
+// status, or one ffprobe failed on transiently - and, for any whose file
+// still exists, retries the probe+match that importFile itself never
+// finished. A regular Scan alone can never fix these: ImportNewFile only
+// ever looks at files with no existing row at all, so a row stuck exactly
+// like this is invisible to it forever otherwise. Returns how many it
+// retried; per-file errors are logged and skipped, matching Scan's own
+// one-bad-file-shouldn't-stop-the-rest behavior.
+func (im *Importer) RetryStuck(ctx context.Context) (retried int, err error) {
+	var movies []models.Movie
+	if dbErr := im.db.Where("status IN ?", []string{models.MovieStatusProbing, models.MovieStatusError}).
+		Find(&movies).Error; dbErr != nil {
+		return 0, dbErr
+	}
+	for i := range movies {
+		movie := &movies[i]
+		absPath := filepath.Join(im.moviesDir, movie.SourceRelpath)
+		if _, statErr := os.Stat(absPath); statErr != nil {
+			continue
+		}
+		if probeErr := im.probeAndFinalize(ctx, movie, absPath, movie.Title, movie.Year); probeErr != nil {
+			log.Printf("library: retrying stuck movie %q failed: %v", movie.Title, probeErr)
+			continue
+		}
+		retried++
+	}
+	return retried, nil
 }
 
 // ApplyManualMatch lets a user correct an ambiguous/no-match import by
@@ -219,6 +265,9 @@ func (im *Importer) matchMetadata(ctx context.Context, movie *models.Movie, absP
 func (im *Importer) applyTMDBDetails(ctx context.Context, movie *models.Movie, details *tmdb.MovieDetails) {
 	tmdbID := details.ID
 	movie.TMDBID = &tmdbID
+	if strings.TrimSpace(details.Title) != "" {
+		movie.Title = details.Title
+	}
 	movie.Overview = details.Overview
 	movie.RuntimeMinutes = details.Runtime
 
