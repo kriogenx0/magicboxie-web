@@ -1,11 +1,12 @@
 import { useArtists } from "../hooks/useMusic";
 import { MusicTile } from "../components/MusicTile";
+import { PageLoader } from "../components/PageLoader";
 
 export function MusicHomePage() {
   const { data: artists, isLoading, error } = useArtists();
 
   if (isLoading) {
-    return <div className="p-8 text-neutral-400">Loading your music…</div>;
+    return <PageLoader label="Loading your music" />;
   }
   if (error) {
     return <div className="p-8 text-red-500">Failed to load artists.</div>;

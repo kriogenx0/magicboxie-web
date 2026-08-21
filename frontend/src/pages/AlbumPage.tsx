@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAlbum, useTracksByAlbum } from "../hooks/useMusic";
 import { usePlayerStore } from "../stores/playerStore";
 import { albumImageUrl } from "../api/client";
+import { PageLoader } from "../components/PageLoader";
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -12,12 +13,16 @@ function formatDuration(seconds: number): string {
 export function AlbumPage() {
   const { id } = useParams<{ id: string }>();
   const albumId = Number(id);
-  const { data: album } = useAlbum(albumId);
+  const { data: album, isLoading: isAlbumLoading } = useAlbum(albumId);
   const { data: tracks, isLoading, error } = useTracksByAlbum(albumId);
   const navigate = useNavigate();
   const playQueue = usePlayerStore((s) => s.playQueue);
   const currentTrackId = usePlayerStore((s) => s.currentTrack()?.id);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+
+  if (isAlbumLoading || isLoading) {
+    return <PageLoader label="Loading album" />;
+  }
 
   return (
     <div className="px-4 py-6 sm:px-8">
@@ -57,7 +62,6 @@ export function AlbumPage() {
         </div>
       </div>
 
-      {isLoading && <p className="text-neutral-400">Loading tracks…</p>}
       {error && <p className="text-red-500">Failed to load tracks.</p>}
 
       <ul className="max-w-2xl divide-y divide-neutral-800">

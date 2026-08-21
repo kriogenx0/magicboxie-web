@@ -4,6 +4,7 @@ import { movieImageUrl } from "../api/client";
 import { useDeleteMovie, useMovies, useRenameMovie } from "../hooks/useMovies";
 import type { Movie } from "../api/types";
 import { MatchPicker } from "../components/MatchPicker";
+import { PageLoader } from "../components/PageLoader";
 
 function AdminMovieRow({ movie }: { movie: Movie }) {
   const [editing, setEditing] = useState(false);
@@ -66,6 +67,10 @@ export function AdminMoviesPage() {
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => movies.filter((m) => `${m.title} ${m.originalFilename}`.toLowerCase().includes(query.toLowerCase())), [movies, query]);
 
+  if (isLoading) {
+    return <PageLoader label="Loading movie library" />;
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-10">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -73,7 +78,7 @@ export function AdminMoviesPage() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search movies…" className="w-full rounded bg-white/10 px-4 py-3 outline-none ring-1 ring-white/10 focus:ring-white sm:w-72" />
       </div>
       <div className="overflow-hidden rounded-lg bg-[#1b1b1b] shadow-2xl ring-1 ring-white/10">
-        {isLoading ? <p className="p-6 text-neutral-400">Loading library…</p> : <ul>{filtered.map((movie) => <AdminMovieRow key={movie.id} movie={movie} />)}</ul>}
+        <ul>{filtered.map((movie) => <AdminMovieRow key={movie.id} movie={movie} />)}</ul>
       </div>
     </div>
   );

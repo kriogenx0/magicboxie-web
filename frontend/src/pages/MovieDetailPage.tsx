@@ -5,6 +5,7 @@ import { movieImageUrl, movieStreamUrl, movieDownloadUrl } from "../api/client";
 import type { ThumbnailCandidate } from "../api/types";
 import { useTranscodeProgress } from "../hooks/useTranscodeProgress";
 import { MatchPicker } from "../components/MatchPicker";
+import { PageLoader } from "../components/PageLoader";
 
 function formatRuntime(seconds: number): string {
   const mins = Math.round(seconds / 60);
@@ -75,7 +76,7 @@ export function MovieDetailPage() {
   }, [movie?.id, movie?.posterIsGenerated, posterVersion]);
 
   if (isLoading) {
-    return <div className="p-8 text-neutral-400">Loading…</div>;
+    return <PageLoader label="Loading movie" />;
   }
   if (error || !movie) {
     return <div className="p-8 text-red-500">Movie not found.</div>;

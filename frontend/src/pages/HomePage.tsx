@@ -3,6 +3,7 @@ import { useMovies } from "../hooks/useMovies";
 import { Hero } from "../components/Hero";
 import { PosterRow } from "../components/PosterRow";
 import type { Movie } from "../api/types";
+import { PageLoader } from "../components/PageLoader";
 
 export function HomePage() {
   const { data: movies, isLoading, error } = useMovies();
@@ -36,7 +37,7 @@ export function HomePage() {
   }, [movies]);
 
   if (isLoading) {
-    return <div className="p-8 text-neutral-400">Loading your library…</div>;
+    return <PageLoader label="Loading your library" />;
   }
   if (error) {
     return <div className="p-8 text-red-500">Failed to load movies.</div>;

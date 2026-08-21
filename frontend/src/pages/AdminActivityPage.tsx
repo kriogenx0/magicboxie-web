@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { BackgroundJob } from "../api/types";
 import { useBackgroundJobs } from "../hooks/useMovies";
+import { PageLoader } from "../components/PageLoader";
 
 function time(value?: string) {
   return value ? new Date(value).toLocaleString() : "—";
@@ -16,6 +17,10 @@ function statusStyle(status: BackgroundJob["status"]) {
 export function AdminActivityPage() {
   const { data: jobs = [], isLoading, error } = useBackgroundJobs();
   const active = jobs.filter((job) => job.status === "running" || job.status === "queued");
+
+  if (isLoading) {
+    return <PageLoader label="Loading activity" />;
+  }
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-10">
@@ -36,7 +41,6 @@ export function AdminActivityPage() {
         <div className="rounded bg-neutral-900 p-4 ring-1 ring-white/10"><div className="text-2xl font-bold">{jobs.filter((j) => j.status === "failed").length}</div><div className="text-sm text-neutral-400">Recent failures</div></div>
       </div>
 
-      {isLoading && <p className="text-neutral-400">Loading activity…</p>}
       {error && <p className="rounded bg-red-950 p-4 text-red-200">Could not load background activity.</p>}
       {!isLoading && !error && jobs.length === 0 && <p className="rounded bg-neutral-900 p-6 text-neutral-400">No background jobs have run yet.</p>}
 

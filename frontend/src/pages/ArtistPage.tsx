@@ -2,13 +2,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useArtist, useAlbumsByArtist } from "../hooks/useMusic";
 import { MusicTile } from "../components/MusicTile";
 import { albumImageUrl } from "../api/client";
+import { PageLoader } from "../components/PageLoader";
 
 export function ArtistPage() {
   const { id } = useParams<{ id: string }>();
   const artistId = Number(id);
-  const { data: artist } = useArtist(artistId);
+  const { data: artist, isLoading: isArtistLoading } = useArtist(artistId);
   const { data: albums, isLoading, error } = useAlbumsByArtist(artistId);
   const navigate = useNavigate();
+
+  if (isArtistLoading || isLoading) {
+    return <PageLoader label="Loading artist" />;
+  }
 
   return (
     <div className="px-4 py-6 sm:px-8">
@@ -22,7 +27,6 @@ export function ArtistPage() {
         {artist?.name ?? "…"}
       </h1>
 
-      {isLoading && <p className="text-neutral-400">Loading albums…</p>}
       {error && <p className="text-red-500">Failed to load albums.</p>}
 
       <div className="flex flex-wrap gap-4 sm:gap-5">
