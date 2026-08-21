@@ -8,6 +8,7 @@ import {
   type TMDBSearchResult,
   type ThumbnailCandidate,
   type BackgroundJob,
+  type Device,
 } from "../api/types";
 
 // "1" is the fixed single-user id -- MagicBoxie has one shared login, not
@@ -31,6 +32,16 @@ export function useBackgroundJobs() {
     queryKey: ["backgroundJobs"],
     queryFn: async () => (await apiFetch<{ jobs: BackgroundJob[] }>("/api/jobs")).jobs,
     refetchInterval: 3000,
+  });
+}
+
+// Every magicboxie-device Pi that has ever checked in, and when it last did
+// - see AdminDevicesPage.
+export function useDevices() {
+  return useQuery({
+    queryKey: ["devices"],
+    queryFn: async () => (await apiFetch<{ devices: Device[] }>("/api/devices")).devices,
+    refetchInterval: 15000,
   });
 }
 

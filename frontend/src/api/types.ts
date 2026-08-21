@@ -120,6 +120,15 @@ export function mapItemToMovie(item: JellyfinItem): Movie {
   };
 }
 
+// A magicboxie-device Pi that has checked in via POST /devices/register -
+// see GET /api/devices and models.Device's own doc comment (purely for
+// visibility, not access control - there's no pairing/approval step).
+export interface Device {
+  id: number;
+  device_id: string;
+  last_seen_at: string;
+}
+
 export interface Artist {
   id: number;
   name: string;
