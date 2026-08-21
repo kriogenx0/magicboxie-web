@@ -139,7 +139,17 @@ func (im *Importer) probeAndFinalize(ctx context.Context, movie *models.Movie, a
 	movie.AudioCodec = info.AudioCodec
 	movie.Container = info.Container
 
-	im.matchMetadata(ctx, movie, absPath, title, year)
+	// Only match if nothing has claimed this movie yet: a stuck-at-probing
+	// row can already carry a correct match from a later rematch-tmdb run
+	// (rematch-tmdb only ever touches metadata, never status - that's
+	// exactly why it can be stuck despite looking fully matched). Redoing
+	// the search here isn't just wasteful in that case, it's actively
+	// destructive - confirmed live, it silently replaced a correct match
+	// with a wrong one for a title ambiguous enough to rank differently on
+	// a second search.
+	if movie.TMDBID == nil {
+		im.matchMetadata(ctx, movie, absPath, title, year)
+	}
 
 	if info.IsBrowserCompatible() {
 		movie.Status = models.MovieStatusReady
