@@ -26,6 +26,11 @@ import (
 
 const progressUpdateInterval = 1 * time.Second
 
+// playerSweepInterval is how often the server looks for ready movies that
+// still lack a 480p player copy, so an idle box keeps working through the
+// backlog on its own instead of only at startup.
+const playerSweepInterval = 10 * time.Minute
+
 // PlayerFFmpegArgs is the video/audio encoding for magicboxie-player's copy:
 // 480p at most (never upscaled), H.264 Baseline - no CABAC or B-frames, the
 // most CPU-expensive parts of decode - which the player's Pi Zero can play
@@ -50,7 +55,8 @@ type Manager struct {
 	maxConcurrent int
 	hub           *events.Hub
 
-	queue chan queuedJob // jobs awaiting a worker
+	queue       chan queuedJob // full transcodes awaiting a worker (always served first)
+	playerQueue chan queuedJob // 480p player copies: background work, only run when no transcode is waiting
 }
 
 type queuedJob struct {
@@ -76,6 +82,7 @@ func NewManager(db *gorm.DB, moviesDir, dataDir, preset string, crf, maxConcurre
 		maxConcurrent: maxConcurrent,
 		hub:           hub,
 		queue:         make(chan queuedJob, 256),
+		playerQueue:   make(chan queuedJob, 4096),
 	}
 }
 
@@ -113,11 +120,32 @@ func (m *Manager) Start(ctx context.Context) {
 	}
 
 	for _, job := range staleJobs {
-		m.queue <- queuedJob{movieID: job.MovieID, jobType: job.Type}
+		if job.Type == models.JobTypePlayerTranscode {
+			m.playerQueue <- queuedJob{movieID: job.MovieID, jobType: job.Type}
+		} else {
+			m.queue <- queuedJob{movieID: job.MovieID, jobType: job.Type}
+		}
 	}
 
-	// Ready movies still missing their player copy (added before this
-	// existed, or its job was lost) get one now.
+	m.sweepPlayerCopies()
+	go func() {
+		ticker := time.NewTicker(playerSweepInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				m.sweepPlayerCopies()
+			}
+		}
+	}()
+}
+
+// sweepPlayerCopies queues a 480p copy for every ready movie still missing
+// one (added before this existed, or its job was lost). EnqueuePlayer skips
+// movies that already have an active job, so this is safe to repeat.
+func (m *Manager) sweepPlayerCopies() {
 	var needPlayerCopy []models.Movie
 	m.db.Where("status = ? AND player_status IN ?",
 		models.MovieStatusReady, []string{"", models.PlayerStatusPending}).Find(&needPlayerCopy)
@@ -162,20 +190,35 @@ func (m *Manager) EnqueuePlayer(movieID uint) {
 	m.db.Model(&movie).Update("player_status", models.PlayerStatusPending)
 	// Called from workers too (after a transcode finishes): never block one
 	// on its own full queue.
-	go func() { m.queue <- queuedJob{movieID: movieID, jobType: models.JobTypePlayerTranscode} }()
+	go func() { m.playerQueue <- queuedJob{movieID: movieID, jobType: models.JobTypePlayerTranscode} }()
 }
 
 func (m *Manager) worker(ctx context.Context) {
+	run := func(queued queuedJob) {
+		if queued.jobType == models.JobTypePlayerTranscode {
+			m.processPlayer(ctx, queued.movieID)
+		} else {
+			m.process(ctx, queued.movieID)
+		}
+	}
 	for {
+		// A waiting transcode always goes before the 480p backlog, so a new
+		// upload never queues behind hundreds of background copies.
 		select {
 		case <-ctx.Done():
 			return
 		case queued := <-m.queue:
-			if queued.jobType == models.JobTypePlayerTranscode {
-				m.processPlayer(ctx, queued.movieID)
-			} else {
-				m.process(ctx, queued.movieID)
-			}
+			run(queued)
+			continue
+		default:
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case queued := <-m.queue:
+			run(queued)
+		case queued := <-m.playerQueue:
+			run(queued)
 		}
 	}
 }
