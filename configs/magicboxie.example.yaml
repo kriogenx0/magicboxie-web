@@ -15,3 +15,6 @@ transcode:
   max_concurrent_jobs: 1
   preset: "medium"
   crf: 20
+  # Transcoding also pauses while anything is playing back, and while the CPU
+  # is at or above this temperature (resumes 5 degrees cooler). 0 disables.
+  pause_above_celsius: 75

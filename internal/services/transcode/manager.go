@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"gorm.io/gorm"
@@ -25,6 +26,9 @@ import (
 )
 
 const progressUpdateInterval = 1 * time.Second
+
+// gateCheckInterval is how often a paused or running job re-checks the gate.
+const gateCheckInterval = 3 * time.Second
 
 // playerSweepInterval is how often the server looks for ready movies that
 // still lack a 480p player copy, so an idle box keeps working through the
@@ -54,6 +58,7 @@ type Manager struct {
 	crf           int
 	maxConcurrent int
 	hub           *events.Hub
+	gate          *Gate // optional; pauses work during playback or overheating
 
 	queue       chan queuedJob // full transcodes awaiting a worker (always served first)
 	playerQueue chan queuedJob // 480p player copies: background work, only run when no transcode is waiting
@@ -67,6 +72,57 @@ type queuedJob struct {
 // PlayerCopyPath is where a movie's 480p copy for magicboxie-player lives.
 func PlayerCopyPath(dataDir string, movieID uint) string {
 	return filepath.Join(dataDir, "player", fmt.Sprintf("%d.mp4", movieID))
+}
+
+// SetGate makes the manager pause work whenever gate says to: new jobs wait
+// to start, and a running ffmpeg is suspended (SIGSTOP) until it clears.
+func (m *Manager) SetGate(g *Gate) { m.gate = g }
+
+// waitForClear blocks while the gate is closed. False means ctx ended.
+func (m *Manager) waitForClear(ctx context.Context) bool {
+	logged := false
+	for {
+		reason := m.gate.Reason()
+		if reason == "" {
+			return true
+		}
+		if !logged {
+			log.Printf("transcode: paused (%s)", reason)
+			logged = true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(gateCheckInterval):
+		}
+	}
+}
+
+// suspendWhileGated stops/continues the ffmpeg process as the gate closes
+// and reopens, until done is closed.
+func (m *Manager) suspendWhileGated(proc *os.Process, done <-chan struct{}) {
+	ticker := time.NewTicker(gateCheckInterval)
+	defer ticker.Stop()
+	stopped := false
+	for {
+		reason := m.gate.Reason()
+		if reason != "" && !stopped {
+			log.Printf("transcode: pausing ffmpeg (%s)", reason)
+			stopped = proc.Signal(syscall.SIGSTOP) == nil
+		} else if reason == "" && stopped {
+			log.Printf("transcode: resuming ffmpeg")
+			_ = proc.Signal(syscall.SIGCONT)
+			stopped = false
+		}
+		select {
+		case <-done:
+			if stopped {
+				_ = proc.Signal(syscall.SIGCONT)
+			}
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 func NewManager(db *gorm.DB, moviesDir, dataDir, preset string, crf, maxConcurrent int, hub *events.Hub) *Manager {
@@ -202,6 +258,9 @@ func (m *Manager) worker(ctx context.Context) {
 		}
 	}
 	for {
+		if !m.waitForClear(ctx) {
+			return
+		}
 		// A waiting transcode always goes before the 480p backlog, so a new
 		// upload never queues behind hundreds of background copies.
 		select {
@@ -443,7 +502,12 @@ func (m *Manager) runFFmpeg(ctx context.Context, job *models.Job, movie *models.
 		return fmt.Errorf("starting ffmpeg: %w", err)
 	}
 
+	done := make(chan struct{})
+	if m.gate != nil {
+		go m.suspendWhileGated(cmd.Process, done)
+	}
 	m.watchProgress(job, movie, stdout)
+	close(done)
 
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("ffmpeg failed: %w: %s", err, stderrTail.String())

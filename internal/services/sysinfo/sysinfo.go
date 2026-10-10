@@ -163,6 +163,9 @@ func loadAverage() []float64 {
 	return load
 }
 
+// CPUTemperature is the SoC temperature in degrees C, or nil if unreadable.
+func CPUTemperature() *float64 { return cpuTemperature() }
+
 // cpuTemperature reads the SoC sensor (millidegrees C), the same value
 // `vcgencmd measure_temp` reports.
 func cpuTemperature() *float64 {

@@ -7,9 +7,11 @@ import (
 	"magicboxie/internal/controllers"
 	"magicboxie/internal/middleware"
 	"magicboxie/internal/services/events"
+	"magicboxie/internal/services/playback"
 )
 
 type Dependencies struct {
+	Playback          *playback.Tracker // optional; records stream requests so transcoding can pause
 	AuthManager       *auth.Manager
 	AuthController    *controllers.AuthController
 	ItemsController   *controllers.ItemsController
@@ -89,13 +91,14 @@ func Register(router *gin.Engine, deps Dependencies) {
 		authorized.GET("/Items/:itemId/PlaybackInfo", deps.ItemsController.PlaybackInfo)
 		authorized.POST("/Items/:itemId/PlaybackInfo", deps.ItemsController.PlaybackInfo)
 
-		authorized.GET("/Videos/:itemId/stream", deps.VideosController.Stream)
-		authorized.HEAD("/Videos/:itemId/stream", deps.VideosController.Stream)
+		track := middleware.TrackPlayback(deps.Playback)
+		authorized.GET("/Videos/:itemId/stream", track, deps.VideosController.Stream)
+		authorized.HEAD("/Videos/:itemId/stream", track, deps.VideosController.Stream)
 		authorized.GET("/Videos/:itemId/preview", deps.VideosController.Preview)
 		authorized.GET("/Videos/:itemId/player", deps.VideosController.Player)
 
-		authorized.GET("/Audio/:itemId/stream", deps.AudioController.Stream)
-		authorized.HEAD("/Audio/:itemId/stream", deps.AudioController.Stream)
+		authorized.GET("/Audio/:itemId/stream", track, deps.AudioController.Stream)
+		authorized.HEAD("/Audio/:itemId/stream", track, deps.AudioController.Stream)
 
 		authorized.POST("/Sessions/Playing", controllers.PlayingStart)
 		authorized.POST("/Sessions/Playing/Progress", controllers.PlayingProgress)

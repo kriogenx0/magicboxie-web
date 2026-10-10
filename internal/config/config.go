@@ -25,6 +25,9 @@ type Config struct {
 		MaxConcurrentJobs int    `yaml:"max_concurrent_jobs"`
 		Preset            string `yaml:"preset"`
 		CRF               int    `yaml:"crf"`
+		// PauseAboveCelsius suspends transcoding while the CPU is at or above
+		// this temperature (resuming 5 degrees below it). 0 disables.
+		PauseAboveCelsius float64 `yaml:"pause_above_celsius"`
 	} `yaml:"transcode"`
 }
 
@@ -37,6 +40,7 @@ func defaults() Config {
 	c.Transcode.MaxConcurrentJobs = 1
 	c.Transcode.Preset = "medium"
 	c.Transcode.CRF = 20
+	c.Transcode.PauseAboveCelsius = 75
 	return c
 }
 

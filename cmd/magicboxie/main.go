@@ -20,6 +20,8 @@ import (
 	"magicboxie/internal/services/events"
 	"magicboxie/internal/services/library"
 	"magicboxie/internal/services/music"
+	"magicboxie/internal/services/playback"
+	"magicboxie/internal/services/sysinfo"
 	"magicboxie/internal/services/tmdb"
 	"magicboxie/internal/services/transcode"
 	"magicboxie/internal/services/upload"
@@ -79,6 +81,8 @@ func main() {
 
 	eventsHub := events.NewHub()
 	transcodeManager := transcode.NewManager(gormDB, cfg.MoviesDir, cfg.DataDir, cfg.Transcode.Preset, cfg.Transcode.CRF, cfg.Transcode.MaxConcurrentJobs, eventsHub)
+	playbackTracker := playback.NewTracker()
+	transcodeManager.SetGate(transcode.NewGate(playbackTracker.Playing, sysinfo.CPUTemperature, cfg.Transcode.PauseAboveCelsius))
 	importer.OnNeedsTranscode = transcodeManager.Enqueue
 	importer.OnReady = transcodeManager.EnqueuePlayer
 	transcodeManager.Start(context.Background())
@@ -98,6 +102,7 @@ func main() {
 	router := gin.Default()
 	routes.Register(router, routes.Dependencies{
 		AuthManager:       authManager,
+		Playback:          playbackTracker,
 		AuthController:    authController,
 		ItemsController:   itemsController,
 		VideosController:  videosController,
